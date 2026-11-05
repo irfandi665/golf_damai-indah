@@ -24,19 +24,21 @@ function SlotSkeleton() {
 export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect, now }) {
   const [reloadToken, setReloadToken] = useState(0);
   const [fetchState, setFetchState] = useState({ status: 'loading', slots: [] });
+  const [selecting, setSelecting] = useState(false);
+  const [selectionError, setSelectionError] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
     setFetchState({ status: 'loading', slots: [] });
 
-    fetchTeeTimes(dateKey, { signal: controller.signal })
+    fetchTeeTimes(dateKey, { signal: controller.signal, players })
       .then((slots) => setFetchState({ status: 'ready', slots }))
       .catch((error) => {
         if (error.name !== 'AbortError') setFetchState({ status: 'error', slots: [] });
       });
 
     return () => controller.abort();
-  }, [dateKey, reloadToken]);
+  }, [dateKey, players, reloadToken]);
 
   const bookableCount = useMemo(
     () =>
@@ -80,8 +82,25 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
     );
   }
 
+  const selectSlot = async (slot) => {
+    setSelecting(true);
+    setSelectionError(null);
+    try {
+      await onSelect(slot);
+    } catch (error) {
+      setSelectionError(error.message);
+    } finally {
+      setSelecting(false);
+    }
+  };
+
   return (
     <div>
+      {selectionError && (
+        <p role="alert" className="mb-5 rounded-xl border border-red-300/30 bg-red-950/20 px-5 py-4 text-sm text-red-200">
+          {selectionError}
+        </p>
+      )}
       <p role="status" className="mb-6 text-sm text-[#F6F2EA]/60">
         {bookableCount > 0
           ? `${pluralize(bookableCount, 'tee time')} available for ${pluralize(players, 'player')}.`
@@ -96,8 +115,8 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
             </h3>
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-5">
               {group.slots.map((slot) => {
-                const closed = isSlotClosed(dateKey, slot.time, now);
-                const fits = slot.spotsLeft >= players;
+                const closed = slot.status === 'blocked' || slot.status === 'closed' || isSlotClosed(dateKey, slot.time, now);
+                const fits = slot.status !== 'full' && slot.spotsLeft >= players;
                 const disabled = closed || !fits;
                 const selected = selectedTime === slot.time;
 
@@ -126,10 +145,10 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
                   <button
                     key={slot.time}
                     type="button"
-                    disabled={disabled}
+                    disabled={disabled || selecting}
                     aria-pressed={selected}
                     aria-label={`${slot.time}, ${caption}${hint ? `, ${hint}` : ''}`}
-                    onClick={() => onSelect(slot)}
+                    onClick={() => selectSlot(slot)}
                     className={`flex min-h-[5.5rem] flex-col items-center justify-center rounded-xl border px-2 py-3 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F2A20] ${stateClass}`}
                   >
                     <span className="font-[family-name:var(--font-heading)] text-2xl font-semibold tabular-nums leading-none">

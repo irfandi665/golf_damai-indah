@@ -63,6 +63,9 @@ export default function BookingSuccess({ state, quote, onReset }) {
         A confirmation has been sent to <span className="text-[#F6F2EA]">{state.guest.email}</span> and{' '}
         <span className="text-[#F6F2EA]">{state.guest.phone}</span>.
       </p>
+      <p className="mt-3 text-sm text-[#F6F2EA]/60">
+        Payment is settled at the club. This app does not process or confirm payments.
+      </p>
 
       <div className="mt-10 rounded-2xl border border-[#C9A96E]/25 bg-white/[0.03] p-8 text-left">
         <div className="flex items-baseline justify-between border-b border-[#C9A96E]/15 pb-5">

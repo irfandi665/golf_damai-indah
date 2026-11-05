@@ -7,7 +7,14 @@ import StepConfirm from './StepConfirm';
 import StepSchedule from './StepSchedule';
 import StepServices from './StepServices';
 import { MobileActionBar, PriceSummary } from './PriceSummary';
-import { calculateQuote, createBooking, validateGuest } from '@/lib/booking/engine';
+import {
+  calculateQuote,
+  createBooking,
+  createTeeTimeHold,
+  fetchServerQuote,
+  releaseTeeTimeHold,
+  validateGuest,
+} from '@/lib/booking/engine';
 import { STEPS, bookingReducer, canProceed, initialState } from '@/lib/booking/reducer';
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -78,7 +85,7 @@ function BookingFlow({ now }) {
   const panelRef = useRef(null);
   const lastFocusKey = useRef(state.stepIndex);
 
-  const quote = useMemo(
+  const localQuote = useMemo(
     () =>
       calculateQuote({
         slot: state.slot,
@@ -89,6 +96,51 @@ function BookingFlow({ now }) {
       }),
     [state.slot, state.players, state.caddy, state.buggy, state.extras],
   );
+  const [serverQuote, setServerQuote] = useState(null);
+  const [quoteError, setQuoteError] = useState(null);
+  const quote = serverQuote || localQuote;
+
+  useEffect(() => {
+    if (!state.holdId) {
+      setServerQuote(null);
+      setQuoteError(null);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setServerQuote(null);
+    setQuoteError(null);
+    fetchServerQuote({
+      holdId: state.holdId,
+      caddy: state.caddy,
+      buggy: state.buggy,
+      extras: state.extras,
+      signal: controller.signal,
+    })
+      .then(setServerQuote)
+      .catch((error) => {
+        if (error.name !== 'AbortError') setQuoteError(error.message);
+      });
+
+    return () => controller.abort();
+  }, [state.holdId, state.caddy, state.buggy, state.extras]);
+
+  useEffect(() => {
+    const holdId = state.holdId;
+    if (!holdId) return undefined;
+    return () => {
+      releaseTeeTimeHold(holdId).catch((error) => {
+        console.error('Could not release tee-time hold:', error);
+      });
+    };
+  }, [state.holdId]);
+
+  const selectSlot = useCallback(async (slot) => {
+    if (!slot.slotId) throw new Error('This tee time cannot be held. Refresh availability and try again.');
+    if (state.holdId) await releaseTeeTimeHold(state.holdId);
+    const hold = await createTeeTimeHold({ slotId: slot.slotId, players: state.players });
+    dispatch({ type: 'SELECT_SLOT', slot, holdId: hold.holdId });
+  }, [state.holdId, state.players]);
 
   const errors = useMemo(() => {
     const result = validateGuest(state.guest);
@@ -119,20 +171,20 @@ function BookingFlow({ now }) {
     dispatch({ type: 'SUBMIT_START' });
     try {
       const { reference } = await createBooking({
-        dateKey: state.dateKey,
-        time: state.slot.time,
-        players: state.players,
+        holdId: state.holdId,
         caddy: state.caddy,
         buggy: state.buggy,
         extras: state.extras,
         guest: state.guest,
-        total: quote.total,
+        notes: state.guest.notes,
+        termsAccepted: state.agreed,
+        clientTotal: quote.total,
       });
       dispatch({ type: 'SUBMIT_SUCCESS', reference });
-    } catch {
+    } catch (error) {
       dispatch({
         type: 'SUBMIT_FAILURE',
-        error: 'We could not complete your booking. Please try again in a moment.',
+        error: error.message || 'We could not complete your booking. Please try again in a moment.',
       });
     }
   }, [errors, quote, state]);
@@ -145,7 +197,9 @@ function BookingFlow({ now }) {
   if (state.stepIndex === 1) actionLabel = 'Review Booking';
   if (isLastStep) actionLabel = submitting ? 'Confirming…' : 'Confirm Booking';
 
-  const actionDisabled = submitting || (state.stepIndex === 0 && !canProceed(state));
+  const actionDisabled = submitting
+    || (state.stepIndex === 0 && !canProceed(state))
+    || (Boolean(state.holdId) && !serverQuote);
   const actionProps = {
     state,
     quote,
@@ -176,6 +230,9 @@ function BookingFlow({ now }) {
             >
               Reserve your <span className="italic text-[#C9A96E]">tee time</span>
             </h1>
+            <p className="mt-5 max-w-2xl rounded-xl border border-[#C9A96E]/20 bg-[#C9A96E]/5 px-5 py-4 text-sm text-[#F6F2EA]/70">
+              Reservation only: all payments are made at the club. This app does not process or confirm payments.
+            </p>
             <div className="mt-10">
               <Stepper
                 stepIndex={state.stepIndex}
@@ -183,6 +240,12 @@ function BookingFlow({ now }) {
               />
             </div>
           </header>
+        )}
+
+        {quoteError && state.holdId && !state.reference && (
+          <p role="alert" className="mb-6 rounded-xl border border-red-300/30 bg-red-950/20 px-5 py-4 text-sm text-red-200">
+            {quoteError}
+          </p>
         )}
 
         <div
@@ -210,7 +273,7 @@ function BookingFlow({ now }) {
                     transition={{ duration: 0.4, ease: EASE }}
                   >
                     {state.stepIndex === 0 && (
-                      <StepSchedule state={state} dispatch={dispatch} now={now} />
+                      <StepSchedule state={state} dispatch={dispatch} now={now} onSelectSlot={selectSlot} />
                     )}
                     {state.stepIndex === 1 && <StepServices state={state} dispatch={dispatch} />}
                     {state.stepIndex === 2 && (

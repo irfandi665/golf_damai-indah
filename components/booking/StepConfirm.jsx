@@ -213,7 +213,8 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
           </div>
 
           <p className="rounded-xl border border-[#C9A96E]/20 bg-[#C9A96E]/5 px-5 py-4 text-sm text-[#F6F2EA]/70">
-            No payment is taken online. Your total is settled at check-in.
+            This booking is a reservation only. Payment is made at the club on
+            arrival; this app does not process or confirm payments.
           </p>
 
           {submit.error && (

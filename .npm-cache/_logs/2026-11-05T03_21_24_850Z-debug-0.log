@@ -1,0 +1,420 @@
+0 verbose cli C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.9
+2 info using node@v22.23.3
+3 silly config load:file:C:\Users\hegemon\AppData\Local\nvm\v22.23.3\node_modules\npm\npmrc
+4 silly config load:file:D:\Project\web\golf\.npmrc
+5 silly config load:file:C:\Users\hegemon\.npmrc
+6 silly config load:file:C:\nvm4w\nodejs\etc\npmrc
+7 verbose title npm install pg redis
+8 verbose argv "install" "pg" "redis" "--no-audit" "--no-fund" "--cache" "D:\\Project\\web\\golf\\.npm-cache"
+9 verbose logfile logs-max:10 dir:D:\Project\web\golf\.npm-cache\_logs\2026-11-05T03_21_24_850Z-
+10 verbose logfile D:\Project\web\golf\.npm-cache\_logs\2026-11-05T03_21_24_850Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+13 silly idealTree buildDeps
+14 silly fetch manifest pg@*
+15 silly packumentCache full:https://registry.npmjs.org/pg cache-miss
+16 http fetch GET 200 https://registry.npmjs.org/pg 979ms (cache miss)
+17 silly packumentCache full:https://registry.npmjs.org/pg set size:undefined disposed:false
+18 silly fetch manifest pg-native@>=3.0.1
+19 silly packumentCache full:https://registry.npmjs.org/pg-native cache-miss
+20 http fetch GET 200 https://registry.npmjs.org/pg-native 33ms (cache miss)
+21 silly packumentCache full:https://registry.npmjs.org/pg-native set size:undefined disposed:false
+22 silly fetch manifest redis@*
+23 silly packumentCache full:https://registry.npmjs.org/redis cache-miss
+24 http fetch GET 200 https://registry.npmjs.org/redis 53ms (cache miss)
+25 silly packumentCache full:https://registry.npmjs.org/redis set size:undefined disposed:false
+26 silly placeDep ROOT pg@8.23.1 OK for:  want: *
+27 silly placeDep ROOT redis@6.3.1 OK for:  want: *
+28 silly fetch manifest pgpass@1.0.5
+29 silly packumentCache full:https://registry.npmjs.org/pgpass cache-miss
+30 silly fetch manifest pg-pool@^3.14.0
+31 silly packumentCache full:https://registry.npmjs.org/pg-pool cache-miss
+32 silly fetch manifest pg-types@2.2.0
+33 silly packumentCache full:https://registry.npmjs.org/pg-types cache-miss
+34 silly fetch manifest pg-protocol@^1.16.1
+35 silly packumentCache full:https://registry.npmjs.org/pg-protocol cache-miss
+36 silly fetch manifest pg-connection-string@^2.14.1
+37 silly packumentCache full:https://registry.npmjs.org/pg-connection-string cache-miss
+38 silly fetch manifest pg-cloudflare@^1.4.1
+39 silly packumentCache full:https://registry.npmjs.org/pg-cloudflare cache-miss
+40 silly fetch manifest @redis/json@6.3.1
+41 silly packumentCache full:https://registry.npmjs.org/@redis%2fjson cache-miss
+42 silly fetch manifest @redis/bloom@6.3.1
+43 silly packumentCache full:https://registry.npmjs.org/@redis%2fbloom cache-miss
+44 silly fetch manifest @redis/client@6.3.1
+45 silly packumentCache full:https://registry.npmjs.org/@redis%2fclient cache-miss
+46 silly fetch manifest @redis/search@6.3.1
+47 silly packumentCache full:https://registry.npmjs.org/@redis%2fsearch cache-miss
+48 silly fetch manifest @redis/time-series@6.3.1
+49 silly packumentCache full:https://registry.npmjs.org/@redis%2ftime-series cache-miss
+50 http fetch GET 200 https://registry.npmjs.org/pgpass 51ms (cache miss)
+51 silly packumentCache full:https://registry.npmjs.org/pgpass set size:undefined disposed:false
+52 http fetch GET 200 https://registry.npmjs.org/pg-cloudflare 75ms (cache miss)
+53 silly packumentCache full:https://registry.npmjs.org/pg-cloudflare set size:undefined disposed:false
+54 http fetch GET 200 https://registry.npmjs.org/pg-types 78ms (cache miss)
+55 silly packumentCache full:https://registry.npmjs.org/pg-types set size:undefined disposed:false
+56 http fetch GET 200 https://registry.npmjs.org/pg-protocol 78ms (cache miss)
+57 silly packumentCache full:https://registry.npmjs.org/pg-protocol set size:undefined disposed:false
+58 http fetch GET 200 https://registry.npmjs.org/pg-pool 82ms (cache miss)
+59 silly packumentCache full:https://registry.npmjs.org/pg-pool set size:undefined disposed:false
+60 http fetch GET 200 https://registry.npmjs.org/pg-connection-string 111ms (cache miss)
+61 silly packumentCache full:https://registry.npmjs.org/pg-connection-string set size:undefined disposed:false
+62 http fetch GET 200 https://registry.npmjs.org/@redis%2fjson 132ms (cache miss)
+63 silly packumentCache full:https://registry.npmjs.org/@redis%2fjson set size:undefined disposed:false
+64 http fetch GET 200 https://registry.npmjs.org/@redis%2fsearch 251ms (cache miss)
+65 silly packumentCache full:https://registry.npmjs.org/@redis%2fsearch set size:undefined disposed:false
+66 http fetch GET 200 https://registry.npmjs.org/@redis%2ftime-series 278ms (cache miss)
+67 silly packumentCache full:https://registry.npmjs.org/@redis%2ftime-series set size:undefined disposed:false
+68 http fetch GET 200 https://registry.npmjs.org/@redis%2fclient 313ms (cache miss)
+69 silly packumentCache full:https://registry.npmjs.org/@redis%2fclient set size:undefined disposed:false
+70 http fetch GET 200 https://registry.npmjs.org/@redis%2fbloom 459ms (cache miss)
+71 silly packumentCache full:https://registry.npmjs.org/@redis%2fbloom set size:undefined disposed:false
+72 silly fetch manifest pg@>=8.0
+73 silly packumentCache full:https://registry.npmjs.org/pg cache-miss
+74 http cache https://registry.npmjs.org/pg 4ms (cache hit)
+75 silly packumentCache full:https://registry.npmjs.org/pg set size:484837 disposed:false
+76 silly placeDep ROOT pg-cloudflare@1.4.1 OK for: pg@8.23.1 want: ^1.4.1
+77 silly placeDep ROOT pg-connection-string@2.14.1 OK for: pg@8.23.1 want: ^2.14.1
+78 silly placeDep ROOT pg-pool@3.14.0 OK for: pg@8.23.1 want: ^3.14.0
+79 silly placeDep ROOT pg-protocol@1.16.1 OK for: pg@8.23.1 want: ^1.16.1
+80 silly placeDep ROOT pg-types@2.2.0 OK for: pg@8.23.1 want: 2.2.0
+81 silly placeDep ROOT pgpass@1.0.5 OK for: pg@8.23.1 want: 1.0.5
+82 silly fetch manifest pg-int8@1.0.1
+83 silly packumentCache full:https://registry.npmjs.org/pg-int8 cache-miss
+84 silly fetch manifest postgres-date@~1.0.4
+85 silly packumentCache full:https://registry.npmjs.org/postgres-date cache-miss
+86 silly fetch manifest postgres-array@~2.0.0
+87 silly packumentCache full:https://registry.npmjs.org/postgres-array cache-miss
+88 silly fetch manifest postgres-bytea@~1.0.0
+89 silly packumentCache full:https://registry.npmjs.org/postgres-bytea cache-miss
+90 silly fetch manifest postgres-interval@^1.1.0
+91 silly packumentCache full:https://registry.npmjs.org/postgres-interval cache-miss
+92 silly fetch manifest split2@^4.1.0
+93 silly packumentCache full:https://registry.npmjs.org/split2 cache-miss
+94 http fetch GET 200 https://registry.npmjs.org/postgres-date 21ms (cache miss)
+95 silly packumentCache full:https://registry.npmjs.org/postgres-date set size:undefined disposed:false
+96 http fetch GET 200 https://registry.npmjs.org/pg-int8 24ms (cache miss)
+97 silly packumentCache full:https://registry.npmjs.org/pg-int8 set size:undefined disposed:false
+98 http fetch GET 200 https://registry.npmjs.org/postgres-array 31ms (cache miss)
+99 silly packumentCache full:https://registry.npmjs.org/postgres-array set size:undefined disposed:false
+100 http fetch GET 200 https://registry.npmjs.org/postgres-interval 201ms (cache miss)
+101 silly packumentCache full:https://registry.npmjs.org/postgres-interval set size:undefined disposed:false
+102 http fetch GET 200 https://registry.npmjs.org/postgres-bytea 220ms (cache miss)
+103 silly packumentCache full:https://registry.npmjs.org/postgres-bytea set size:undefined disposed:false
+104 http fetch GET 200 https://registry.npmjs.org/split2 244ms (cache miss)
+105 silly packumentCache full:https://registry.npmjs.org/split2 set size:undefined disposed:false
+106 silly placeDep ROOT pg-int8@1.0.1 OK for: pg-types@2.2.0 want: 1.0.1
+107 silly placeDep ROOT postgres-array@2.0.0 OK for: pg-types@2.2.0 want: ~2.0.0
+108 silly placeDep ROOT postgres-bytea@1.0.1 OK for: pg-types@2.2.0 want: ~1.0.0
+109 silly placeDep ROOT postgres-date@1.0.7 OK for: pg-types@2.2.0 want: ~1.0.4
+110 silly placeDep ROOT postgres-interval@1.2.0 OK for: pg-types@2.2.0 want: ^1.1.0
+111 silly fetch manifest xtend@^4.0.0
+112 silly packumentCache full:https://registry.npmjs.org/xtend cache-miss
+113 http fetch GET 200 https://registry.npmjs.org/xtend 57ms (cache miss)
+114 silly packumentCache full:https://registry.npmjs.org/xtend set size:undefined disposed:false
+115 silly placeDep ROOT split2@4.2.0 OK for: pgpass@1.0.5 want: ^4.1.0
+116 silly placeDep ROOT xtend@4.0.2 OK for: postgres-interval@1.2.0 want: ^4.0.0
+117 silly fetch manifest @node-rs/xxhash@^1.1.0
+118 silly packumentCache full:https://registry.npmjs.org/@node-rs%2fxxhash cache-miss
+119 http fetch GET 200 https://registry.npmjs.org/@node-rs%2fxxhash 204ms (cache miss)
+120 silly packumentCache full:https://registry.npmjs.org/@node-rs%2fxxhash set size:undefined disposed:false
+121 silly fetch manifest @opentelemetry/api@>=1 <2
+122 silly packumentCache full:https://registry.npmjs.org/@opentelemetry%2fapi cache-miss
+123 http fetch GET 200 https://registry.npmjs.org/@opentelemetry%2fapi 56ms (cache revalidated)
+124 silly packumentCache full:https://registry.npmjs.org/@opentelemetry%2fapi set size:283794 disposed:false
+125 silly placeDep ROOT @redis/bloom@6.3.1 OK for: redis@6.3.1 want: 6.3.1
+126 silly placeDep ROOT @redis/client@6.3.1 OK for: @redis/bloom@6.3.1 want: ^6.3.1
+127 silly placeDep ROOT @redis/json@6.3.1 OK for: redis@6.3.1 want: 6.3.1
+128 silly placeDep ROOT @redis/search@6.3.1 OK for: redis@6.3.1 want: 6.3.1
+129 silly placeDep ROOT @redis/time-series@6.3.1 OK for: redis@6.3.1 want: 6.3.1
+130 silly reify moves {}
+131 verbose reify failed optional dependency D:\Project\web\golf\node_modules\lightningcss-win32-arm64-msvc
+132 silly reify mark deleted [
+132 silly reify   'D:\\Project\\web\\golf\\node_modules\\lightningcss-win32-arm64-msvc'
+132 silly reify ]
+133 verbose reify failed optional dependency D:\Project\web\golf\node_modules\lightningcss-linux-x64-musl
+134 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\lightningcss-linux-x64-musl' ]
+135 verbose reify failed optional dependency D:\Project\web\golf\node_modules\lightningcss-linux-x64-gnu
+136 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\lightningcss-linux-x64-gnu' ]
+137 verbose reify failed optional dependency D:\Project\web\golf\node_modules\lightningcss-linux-arm64-musl
+138 silly reify mark deleted [
+138 silly reify   'D:\\Project\\web\\golf\\node_modules\\lightningcss-linux-arm64-musl'
+138 silly reify ]
+139 verbose reify failed optional dependency D:\Project\web\golf\node_modules\lightningcss-linux-arm64-gnu
+140 silly reify mark deleted [
+140 silly reify   'D:\\Project\\web\\golf\\node_modules\\lightningcss-linux-arm64-gnu'
+140 silly reify ]
+141 verbose reify failed optional dependency D:\Project\web\golf\node_modules\lightningcss-linux-arm-gnueabihf
+142 silly reify mark deleted [
+142 silly reify   'D:\\Project\\web\\golf\\node_modules\\lightningcss-linux-arm-gnueabihf'
+142 silly reify ]
+143 verbose reify failed optional dependency D:\Project\web\golf\node_modules\lightningcss-freebsd-x64
+144 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\lightningcss-freebsd-x64' ]
+145 verbose reify failed optional dependency D:\Project\web\golf\node_modules\lightningcss-darwin-x64
+146 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\lightningcss-darwin-x64' ]
+147 verbose reify failed optional dependency D:\Project\web\golf\node_modules\lightningcss-darwin-arm64
+148 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\lightningcss-darwin-arm64' ]
+149 verbose reify failed optional dependency D:\Project\web\golf\node_modules\lightningcss-android-arm64
+150 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\lightningcss-android-arm64' ]
+151 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@tailwindcss\oxide-win32-arm64-msvc
+152 silly reify mark deleted [
+152 silly reify   'D:\\Project\\web\\golf\\node_modules\\@tailwindcss\\oxide-win32-arm64-msvc'
+152 silly reify ]
+153 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@tailwindcss\oxide-linux-x64-musl
+154 silly reify mark deleted [
+154 silly reify   'D:\\Project\\web\\golf\\node_modules\\@tailwindcss\\oxide-linux-x64-musl'
+154 silly reify ]
+155 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@tailwindcss\oxide-linux-x64-gnu
+156 silly reify mark deleted [
+156 silly reify   'D:\\Project\\web\\golf\\node_modules\\@tailwindcss\\oxide-linux-x64-gnu'
+156 silly reify ]
+157 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@tailwindcss\oxide-linux-arm64-musl
+158 silly reify mark deleted [
+158 silly reify   'D:\\Project\\web\\golf\\node_modules\\@tailwindcss\\oxide-linux-arm64-musl'
+158 silly reify ]
+159 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@tailwindcss\oxide-linux-arm64-gnu
+160 silly reify mark deleted [
+160 silly reify   'D:\\Project\\web\\golf\\node_modules\\@tailwindcss\\oxide-linux-arm64-gnu'
+160 silly reify ]
+161 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@tailwindcss\oxide-linux-arm-gnueabihf
+162 silly reify mark deleted [
+162 silly reify   'D:\\Project\\web\\golf\\node_modules\\@tailwindcss\\oxide-linux-arm-gnueabihf'
+162 silly reify ]
+163 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@tailwindcss\oxide-freebsd-x64
+164 silly reify mark deleted [
+164 silly reify   'D:\\Project\\web\\golf\\node_modules\\@tailwindcss\\oxide-freebsd-x64'
+164 silly reify ]
+165 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@tailwindcss\oxide-darwin-x64
+166 silly reify mark deleted [
+166 silly reify   'D:\\Project\\web\\golf\\node_modules\\@tailwindcss\\oxide-darwin-x64'
+166 silly reify ]
+167 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@tailwindcss\oxide-darwin-arm64
+168 silly reify mark deleted [
+168 silly reify   'D:\\Project\\web\\golf\\node_modules\\@tailwindcss\\oxide-darwin-arm64'
+168 silly reify ]
+169 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@tailwindcss\oxide-android-arm64
+170 silly reify mark deleted [
+170 silly reify   'D:\\Project\\web\\golf\\node_modules\\@tailwindcss\\oxide-android-arm64'
+170 silly reify ]
+171 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@next\swc-win32-arm64-msvc
+172 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@next\\swc-win32-arm64-msvc' ]
+173 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@next\swc-linux-x64-musl
+174 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@next\\swc-linux-x64-musl' ]
+175 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@next\swc-linux-x64-gnu
+176 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@next\\swc-linux-x64-gnu' ]
+177 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@next\swc-linux-arm64-musl
+178 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@next\\swc-linux-arm64-musl' ]
+179 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@next\swc-linux-arm64-gnu
+180 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@next\\swc-linux-arm64-gnu' ]
+181 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@next\swc-darwin-x64
+182 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@next\\swc-darwin-x64' ]
+183 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@next\swc-darwin-arm64
+184 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@next\\swc-darwin-arm64' ]
+185 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-win32-ia32
+186 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-win32-ia32' ]
+187 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-win32-arm64
+188 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-win32-arm64' ]
+189 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-webcontainers-wasm32
+190 silly reify mark deleted [
+190 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-webcontainers-wasm32'
+190 silly reify ]
+191 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-linuxmusl-x64
+192 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-linuxmusl-x64' ]
+193 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-linuxmusl-arm64
+194 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-linuxmusl-arm64' ]
+195 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-linux-x64
+196 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-linux-x64' ]
+197 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-linux-s390x
+198 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-linux-s390x' ]
+199 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-linux-riscv64
+200 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-linux-riscv64' ]
+201 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-linux-ppc64
+202 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-linux-ppc64' ]
+203 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-linux-arm64
+204 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-linux-arm64' ]
+205 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-linux-arm
+206 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-linux-arm' ]
+207 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-libvips-linuxmusl-x64
+208 silly reify mark deleted [
+208 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-libvips-linuxmusl-x64'
+208 silly reify ]
+209 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-libvips-linuxmusl-arm64
+210 silly reify mark deleted [
+210 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-libvips-linuxmusl-arm64'
+210 silly reify ]
+211 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-libvips-linux-x64
+212 silly reify mark deleted [
+212 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-libvips-linux-x64'
+212 silly reify ]
+213 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-libvips-linux-s390x
+214 silly reify mark deleted [
+214 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-libvips-linux-s390x'
+214 silly reify ]
+215 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-libvips-linux-riscv64
+216 silly reify mark deleted [
+216 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-libvips-linux-riscv64'
+216 silly reify ]
+217 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-libvips-linux-ppc64
+218 silly reify mark deleted [
+218 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-libvips-linux-ppc64'
+218 silly reify ]
+219 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-libvips-linux-arm64
+220 silly reify mark deleted [
+220 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-libvips-linux-arm64'
+220 silly reify ]
+221 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-libvips-linux-arm
+222 silly reify mark deleted [
+222 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-libvips-linux-arm'
+222 silly reify ]
+223 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-libvips-darwin-x64
+224 silly reify mark deleted [
+224 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-libvips-darwin-x64'
+224 silly reify ]
+225 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-libvips-darwin-arm64
+226 silly reify mark deleted [
+226 silly reify   'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-libvips-darwin-arm64'
+226 silly reify ]
+227 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-freebsd-wasm32
+228 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-freebsd-wasm32' ]
+229 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-darwin-x64
+230 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-darwin-x64' ]
+231 verbose reify failed optional dependency D:\Project\web\golf\node_modules\@img\sharp-darwin-arm64
+232 silly reify mark deleted [ 'D:\\Project\\web\\golf\\node_modules\\@img\\sharp-darwin-arm64' ]
+233 http cache @redis/time-series@https://registry.npmjs.org/@redis/time-series/-/time-series-6.3.1.tgz 0ms (cache hit)
+234 http cache @redis/json@https://registry.npmjs.org/@redis/json/-/json-6.3.1.tgz 0ms (cache hit)
+235 http cache @redis/client@https://registry.npmjs.org/@redis/client/-/client-6.3.1.tgz 0ms (cache hit)
+236 http cache @redis/search@https://registry.npmjs.org/@redis/search/-/search-6.3.1.tgz 0ms (cache hit)
+237 http cache split2@https://registry.npmjs.org/split2/-/split2-4.2.0.tgz 0ms (cache hit)
+238 http cache @redis/bloom@https://registry.npmjs.org/@redis/bloom/-/bloom-6.3.1.tgz 0ms (cache hit)
+239 http cache xtend@https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz 0ms (cache hit)
+240 http cache postgres-interval@https://registry.npmjs.org/postgres-interval/-/postgres-interval-1.2.0.tgz 0ms (cache hit)
+241 http cache postgres-array@https://registry.npmjs.org/postgres-array/-/postgres-array-2.0.0.tgz 0ms (cache hit)
+242 http cache postgres-bytea@https://registry.npmjs.org/postgres-bytea/-/postgres-bytea-1.0.1.tgz 0ms (cache hit)
+243 http cache postgres-date@https://registry.npmjs.org/postgres-date/-/postgres-date-1.0.7.tgz 0ms (cache hit)
+244 http cache pg-int8@https://registry.npmjs.org/pg-int8/-/pg-int8-1.0.1.tgz 0ms (cache hit)
+245 http cache pgpass@https://registry.npmjs.org/pgpass/-/pgpass-1.0.5.tgz 0ms (cache hit)
+246 http cache pg-protocol@https://registry.npmjs.org/pg-protocol/-/pg-protocol-1.16.1.tgz 0ms (cache hit)
+247 http cache pg-types@https://registry.npmjs.org/pg-types/-/pg-types-2.2.0.tgz 0ms (cache hit)
+248 http cache pg-pool@https://registry.npmjs.org/pg-pool/-/pg-pool-3.14.0.tgz 0ms (cache hit)
+249 http cache pg-connection-string@https://registry.npmjs.org/pg-connection-string/-/pg-connection-string-2.14.1.tgz 0ms (cache hit)
+250 silly tarball no local data for @redis/time-series@https://registry.npmjs.org/@redis/time-series/-/time-series-6.3.1.tgz. Extracting by manifest.
+251 silly tarball no local data for @redis/json@https://registry.npmjs.org/@redis/json/-/json-6.3.1.tgz. Extracting by manifest.
+252 http cache redis@https://registry.npmjs.org/redis/-/redis-6.3.1.tgz 0ms (cache hit)
+253 silly tarball no local data for @redis/client@https://registry.npmjs.org/@redis/client/-/client-6.3.1.tgz. Extracting by manifest.
+254 silly tarball no local data for @redis/search@https://registry.npmjs.org/@redis/search/-/search-6.3.1.tgz. Extracting by manifest.
+255 silly tarball no local data for split2@https://registry.npmjs.org/split2/-/split2-4.2.0.tgz. Extracting by manifest.
+256 http cache pg-cloudflare@https://registry.npmjs.org/pg-cloudflare/-/pg-cloudflare-1.4.1.tgz 0ms (cache hit)
+257 silly tarball no local data for @redis/bloom@https://registry.npmjs.org/@redis/bloom/-/bloom-6.3.1.tgz. Extracting by manifest.
+258 silly tarball no local data for xtend@https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz. Extracting by manifest.
+259 silly tarball no local data for postgres-interval@https://registry.npmjs.org/postgres-interval/-/postgres-interval-1.2.0.tgz. Extracting by manifest.
+260 silly tarball no local data for postgres-array@https://registry.npmjs.org/postgres-array/-/postgres-array-2.0.0.tgz. Extracting by manifest.
+261 silly tarball no local data for postgres-bytea@https://registry.npmjs.org/postgres-bytea/-/postgres-bytea-1.0.1.tgz. Extracting by manifest.
+262 silly tarball no local data for postgres-date@https://registry.npmjs.org/postgres-date/-/postgres-date-1.0.7.tgz. Extracting by manifest.
+263 silly tarball no local data for pg-int8@https://registry.npmjs.org/pg-int8/-/pg-int8-1.0.1.tgz. Extracting by manifest.
+264 silly tarball no local data for pgpass@https://registry.npmjs.org/pgpass/-/pgpass-1.0.5.tgz. Extracting by manifest.
+265 silly tarball no local data for pg-protocol@https://registry.npmjs.org/pg-protocol/-/pg-protocol-1.16.1.tgz. Extracting by manifest.
+266 silly tarball no local data for pg-types@https://registry.npmjs.org/pg-types/-/pg-types-2.2.0.tgz. Extracting by manifest.
+267 silly tarball no local data for pg-pool@https://registry.npmjs.org/pg-pool/-/pg-pool-3.14.0.tgz. Extracting by manifest.
+268 http cache pg@https://registry.npmjs.org/pg/-/pg-8.23.1.tgz 0ms (cache hit)
+269 silly tarball no local data for pg-connection-string@https://registry.npmjs.org/pg-connection-string/-/pg-connection-string-2.14.1.tgz. Extracting by manifest.
+270 silly tarball no local data for redis@https://registry.npmjs.org/redis/-/redis-6.3.1.tgz. Extracting by manifest.
+271 silly tarball no local data for pg-cloudflare@https://registry.npmjs.org/pg-cloudflare/-/pg-cloudflare-1.4.1.tgz. Extracting by manifest.
+272 silly tarball no local data for pg@https://registry.npmjs.org/pg/-/pg-8.23.1.tgz. Extracting by manifest.
+273 http fetch GET 200 https://registry.npmjs.org/postgres-date/-/postgres-date-1.0.7.tgz 51ms (cache miss)
+274 http fetch GET 200 https://registry.npmjs.org/postgres-interval/-/postgres-interval-1.2.0.tgz 53ms (cache miss)
+275 http fetch GET 200 https://registry.npmjs.org/postgres-bytea/-/postgres-bytea-1.0.1.tgz 60ms (cache miss)
+276 http fetch GET 200 https://registry.npmjs.org/postgres-array/-/postgres-array-2.0.0.tgz 69ms (cache miss)
+277 http fetch GET 200 https://registry.npmjs.org/split2/-/split2-4.2.0.tgz 70ms (cache miss)
+278 http fetch GET 200 https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz 74ms (cache miss)
+279 http fetch GET 200 https://registry.npmjs.org/pg-int8/-/pg-int8-1.0.1.tgz 86ms (cache miss)
+280 http fetch GET 200 https://registry.npmjs.org/pg-pool/-/pg-pool-3.14.0.tgz 86ms (cache miss)
+281 http fetch GET 200 https://registry.npmjs.org/pgpass/-/pgpass-1.0.5.tgz 90ms (cache miss)
+282 http fetch GET 200 https://registry.npmjs.org/pg-cloudflare/-/pg-cloudflare-1.4.1.tgz 123ms (cache miss)
+283 http fetch GET 200 https://registry.npmjs.org/redis/-/redis-6.3.1.tgz 130ms (cache miss)
+284 http fetch GET 200 https://registry.npmjs.org/pg-types/-/pg-types-2.2.0.tgz 153ms (cache miss)
+285 http fetch GET 200 https://registry.npmjs.org/pg/-/pg-8.23.1.tgz 165ms (cache miss)
+286 http fetch GET 200 https://registry.npmjs.org/pg-protocol/-/pg-protocol-1.16.1.tgz 202ms (cache miss)
+287 http fetch GET 200 https://registry.npmjs.org/pg-connection-string/-/pg-connection-string-2.14.1.tgz 337ms (cache miss)
+288 http fetch GET 200 https://registry.npmjs.org/@redis/json/-/json-6.3.1.tgz 672ms (cache miss)
+289 http fetch GET 200 https://registry.npmjs.org/@redis/search/-/search-6.3.1.tgz 890ms (cache miss)
+290 http fetch GET 200 https://registry.npmjs.org/@redis/time-series/-/time-series-6.3.1.tgz 1090ms (cache miss)
+291 http fetch GET 200 https://registry.npmjs.org/@redis/bloom/-/bloom-6.3.1.tgz 1218ms (cache miss)
+292 http fetch GET 200 https://registry.npmjs.org/@redis/client/-/client-6.3.1.tgz 3919ms (cache miss)
+293 silly ADD node_modules/@redis/time-series
+294 silly ADD node_modules/@redis/search
+295 silly ADD node_modules/@redis/json
+296 silly ADD node_modules/@redis/client
+297 silly ADD node_modules/@redis/bloom
+298 silly ADD node_modules/xtend
+299 silly ADD node_modules/split2
+300 silly ADD node_modules/postgres-interval
+301 silly ADD node_modules/postgres-date
+302 silly ADD node_modules/postgres-bytea
+303 silly ADD node_modules/postgres-array
+304 silly ADD node_modules/pg-int8
+305 silly ADD node_modules/pgpass
+306 silly ADD node_modules/pg-types
+307 silly ADD node_modules/pg-protocol
+308 silly ADD node_modules/pg-pool
+309 silly ADD node_modules/pg-connection-string
+310 silly ADD node_modules/pg-cloudflare
+311 silly ADD node_modules/redis
+312 silly ADD node_modules/pg
+313 silly ADD
+314 silly ADD
+315 silly ADD
+316 silly ADD
+317 silly ADD
+318 silly ADD
+319 silly ADD
+320 silly ADD
+321 silly ADD
+322 silly ADD
+323 silly ADD
+324 silly ADD
+325 silly ADD
+326 silly ADD
+327 silly ADD
+328 silly ADD
+329 silly ADD
+330 silly ADD
+331 silly ADD
+332 silly ADD
+333 silly ADD
+334 silly ADD
+335 silly ADD
+336 silly ADD
+337 silly ADD
+338 silly ADD
+339 silly ADD
+340 silly ADD
+341 silly ADD
+342 silly ADD
+343 silly ADD
+344 silly ADD
+345 silly ADD
+346 silly ADD
+347 silly ADD
+348 silly ADD
+349 silly ADD
+350 silly ADD
+351 silly ADD
+352 silly ADD
+353 silly ADD
+354 silly ADD
+355 silly ADD
+356 silly ADD
+357 silly ADD
+358 silly ADD
+359 silly ADD
+360 silly ADD
+361 silly ADD
+362 silly ADD
+363 silly ADD
+364 verbose cwd D:\Project\web\golf
+365 verbose os Windows_NT 10.0.26300
+366 verbose node v22.23.3
+367 verbose npm  v10.9.9
+368 verbose exit 0
+369 info ok

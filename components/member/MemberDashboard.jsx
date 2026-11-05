@@ -9,6 +9,8 @@ import ProfileHeader from './ProfileHeader';
 import TierCard from './TierCard';
 import { addDays, startOfDay, toDateKey } from '@/lib/booking/utils';
 import { fetchMemberData } from '@/lib/member/data';
+import { apiRequest, newIdempotencyKey } from '@/lib/api-client';
+import Link from 'next/link';
 import { memberReducer } from '@/lib/member/reducer';
 import {
   VOUCHER_VALIDITY_DAYS,
@@ -44,11 +46,54 @@ function DashboardSkeleton() {
   );
 }
 
-function DashboardView({ data, now }) {
+function DashboardView({ data, now, onRefresh }) {
   const [state, dispatch] = useReducer(memberReducer, data, (initial) => ({
     ...initial,
     notice: null,
   }));
+
+  const dispatchToApi = async (action) => {
+    try {
+      if (action.type === 'LOG_ROUND') {
+        const result = await apiRequest('/api/v1/me/rounds', {
+          method: 'POST',
+          body: { playedOn: action.dateKey, grossScore: action.gross },
+        });
+        dispatch({
+          ...action,
+          id: result.round.id,
+          dateKey: result.round.playedOn,
+          gross: result.round.grossScore,
+        });
+        onRefresh();
+        return;
+      }
+
+      if (action.type === 'CANCEL_BOOKING') {
+        await apiRequest(`/api/v1/bookings/${encodeURIComponent(action.bookingId)}/cancel`, {
+          method: 'POST',
+          idempotencyKey: newIdempotencyKey(),
+        });
+        dispatch(action);
+        onRefresh();
+        return;
+      }
+
+      if (action.type === 'REDEEM') {
+        await apiRequest(`/api/v1/me/rewards/${encodeURIComponent(action.rewardId)}/redeem`, {
+          method: 'POST',
+          idempotencyKey: newIdempotencyKey(),
+        });
+        dispatch(action);
+        onRefresh();
+        return;
+      }
+
+      dispatch(action);
+    } catch (error) {
+      dispatch({ type: 'SHOW_NOTICE', message: error.message });
+    }
+  };
 
   const todayKey = toDateKey(now);
   const voucherValidUntil = toDateKey(addDays(startOfDay(now), VOUCHER_VALIDITY_DAYS));
@@ -102,12 +147,12 @@ function DashboardView({ data, now }) {
               handicap={handicap}
               trend={trend}
               now={now}
-              dispatch={dispatch}
+              dispatch={dispatchToApi}
             />
             <BookingHistory
               bookings={state.bookings}
               now={now}
-              dispatch={dispatch}
+              dispatch={dispatchToApi}
               todayKey={todayKey}
               voucherValidUntil={voucherValidUntil}
             />
@@ -122,7 +167,7 @@ function DashboardView({ data, now }) {
               wallet={state.wallet}
               ledger={state.ledger}
               vouchers={state.vouchers}
-              dispatch={dispatch}
+              dispatch={dispatchToApi}
               todayKey={todayKey}
               voucherValidUntil={voucherValidUntil}
             />
@@ -177,7 +222,7 @@ export default function MemberDashboard() {
     fetchMemberData(now, { signal: controller.signal })
       .then((data) => setLoad({ status: 'ready', data }))
       .catch((error) => {
-        if (error.name !== 'AbortError') setLoad({ status: 'error', data: null });
+        if (error.name !== 'AbortError') setLoad({ status: 'error', data: null, error });
       });
 
     return () => controller.abort();
@@ -190,19 +235,29 @@ export default function MemberDashboard() {
       <div className="mx-auto max-w-xl px-6 pb-24 pt-40 text-center">
         <div role="alert" className="rounded-2xl border border-red-300/30 bg-red-950/20 p-8">
           <p className="text-sm text-[#F6F2EA]/85">
-            We could not load your member dashboard. Check your connection and try again.
+            {load.error?.status === 401
+              ? 'Sign in to view your member dashboard.'
+              : load.error?.status === 503
+                ? 'The member service is not configured yet. Contact the club or try again later.'
+                : 'We could not load your member dashboard. Check your connection and try again.'}
           </p>
-          <button
-            type="button"
-            onClick={() => setReloadToken((value) => value + 1)}
-            className="mt-5 rounded-full border border-[#C9A96E] px-7 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A96E] transition-colors hover:bg-[#C9A96E] hover:text-[#0F2A20] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E]"
-          >
-            Try Again
-          </button>
+          {load.error?.status === 401 ? (
+            <Link href="/member/login" className="mt-5 inline-block rounded-full bg-[#C9A96E] px-7 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#0F2A20]">
+              Sign In
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setReloadToken((value) => value + 1)}
+              className="mt-5 rounded-full border border-[#C9A96E] px-7 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A96E] transition-colors hover:bg-[#C9A96E] hover:text-[#0F2A20] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E]"
+            >
+              Try Again
+            </button>
+          )}
         </div>
       </div>
     );
   }
 
-  return <DashboardView data={load.data} now={now} />;
+  return <DashboardView data={load.data} now={now} onRefresh={() => setReloadToken((value) => value + 1)} />;
 }
