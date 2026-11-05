@@ -116,7 +116,7 @@ function BookingFlow({ now }) {
   );
   const [serverQuote, setServerQuote] = useState(null);
   const [quoteError, setQuoteError] = useState(null);
-  const quote = serverQuote || localQuote;
+  const quote = state.slot ? serverQuote || localQuote : null;
 
   useEffect(() => {
     if (!state.holdId) {
@@ -197,6 +197,7 @@ function BookingFlow({ now }) {
         notes: state.guest.notes,
         termsAccepted: state.agreed,
         clientTotal: quote.total,
+        teeBox: state.teeBox,
       });
       dispatch({
         type: 'SUBMIT_SUCCESS',

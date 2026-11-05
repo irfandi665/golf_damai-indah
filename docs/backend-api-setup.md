@@ -33,13 +33,19 @@ sebaiknya menggunakan Redis terkelola dengan autentikasi dan TLS.
    Redis yang siap akan membalas `PONG`.
 3. Salin `.env.example` ke `.env.local`, lalu atur `DATABASE_URL`,
    `REDIS_URL`, `APP_ORIGIN`, `HOLD_IP_HASH_SECRET`, dan
-   `QR_SIGNING_SECRET` (diperlukan untuk alur QR/check-in). Untuk notifikasi
+   `QR_SIGNING_SECRET` (diperlukan untuk alur QR/check-in). Migrasi 005
+   menambahkan pilihan tee box, paket, pencatatan pembayaran, token e-ticket,
+   serta HTML/lampiran PDF pada email outbox; `npm run db:migrate` menerapkan
+   migrasi tersebut bersama migrasi lain. Untuk notifikasi
    terjadwal, atur `NOTIFICATION_JOB_TOKEN` dengan secret acak yang panjang.
    Untuk email, atur `RESEND_API_KEY`, `EMAIL_FROM`, serta
    `CLUB_CONTACT_EMAIL`. Gunakan
    domain pengirim yang telah diverifikasi Resend untuk production; alamat
    `onboarding@resend.dev` hanya untuk pengujian sesuai batas akun Resend.
    Jangan commit `.env.local` atau menyimpan secret di source control.
+   Untuk menonaktifkan seluruh pengiriman email keluar di lingkungan lokal,
+   set `EMAIL_DELIVERY_DISABLED=true`; pesan tetap tercatat di outbox sebagai
+   tertunda untuk dipantau atau dicoba ulang setelah konfigurasi tersedia.
 4. Jalankan migrasi. Script migrasi dijalankan langsung oleh Node dan tidak
    membaca `.env.local` secara otomatis; isi `DATABASE_URL` ke environment
    PowerShell sebelum menjalankannya:
@@ -85,7 +91,8 @@ sebaiknya menggunakan Redis terkelola dengan autentikasi dan TLS.
 
 Tes integrasi membuat member dan booking sementara melalui API lokal, menguji
 retry idempotency, reschedule, waitlist/claim, preferensi notifikasi,
-tee-sheet search, serta rate limit Redis, lalu menghapus data tes yang dibuat.
+tee-sheet search, e-ticket/check-in, laporan admin, override audit, serta rate
+limit Redis, lalu menghapus data tes yang dibuat.
 Gunakan database `golf` lokal atau database lokal dengan akhiran `_test`, dan
 pastikan database tersebut bukan production. Tanggal tee time tes dipilih jauh
 di masa depan; slot yang dibuat khusus oleh tes dibersihkan setelahnya.
@@ -93,6 +100,7 @@ di masa depan; slot yang dibuat khusus oleh tes dibersihkan setelahnya.
 Di terminal pertama, jalankan server dengan konfigurasi `.env` lokal:
 
 ```powershell
+$env:EMAIL_DELIVERY_DISABLED = "true"
 npm run dev
 ```
 
@@ -106,6 +114,23 @@ Suite akan menolak API, PostgreSQL, atau Redis non-lokal. Jika proses dihentikan
 paksa, data sementara mungkin tertinggal; gunakan hanya database test dan
 hapus akun berawalan `integration-` serta booking tes secara manual sebelum
 mengulang pengujian.
+
+## E-ticket, check-in, dan laporan admin
+
+Email konfirmasi booking memuat QR dan PDF e-ticket dengan lapangan, tanggal,
+tee-off, pemain, tee box, paket, total yang dibayarkan di lokasi, kebijakan
+pembatalan 24 jam, serta dress code/etiket. Token QR bersifat opaque dan data
+booking hanya dicari serta divalidasi server; token tidak memuat PII.
+`POST /api/v1/staff/tickets/validate` memvalidasi tiket untuk staf. Pemindaian
+atau validasi tidak otomatis check-in; staf mengonfirmasi melalui tombol
+check-in agar status dan timestamp tercatat.
+
+Halaman `/staff` tersedia bagi role `staff` dan `admin`. Admin memiliki laporan
+harian dengan filter kehadiran/pencatatan pembayaran dan dapat mengubah status
+kehadiran secara manual. Status pembayaran yang tersedia (`unpaid`,
+`down_payment`, `paid`) adalah catatan staf/admin saja; aplikasi tidak menerima
+atau memproses uang. Kamera pada browser memerlukan izin pengguna dan origin
+yang aman (HTTPS atau localhost).
 
 Migrasi `002_onsite_payment_only.sql` mengubah booking lama yang masih menunggu
 pembayaran menjadi reservasi terkonfirmasi dan menghapus expiry pembayaran.

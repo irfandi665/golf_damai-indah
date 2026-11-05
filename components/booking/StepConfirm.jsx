@@ -78,6 +78,7 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
   const { guest, showErrors, submit } = state;
   const caddy = CADDY_OPTIONS.find((option) => option.id === state.caddy);
   const carts = Math.ceil(state.players / BUGGY.seatsPerCart);
+  const packageType = [0, 6].includes(new Date(`${state.dateKey}T12:00:00Z`).getUTCDay()) ? 'Weekend' : 'Weekday';
   const extrasSummary = EXTRAS.filter((extra) => state.extras[extra.id] > 0)
     .map((extra) => `${extra.label} × ${state.extras[extra.id]}`)
     .join(', ');
@@ -101,6 +102,26 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
             onChange={() => dispatch({ type: 'GO_TO_STEP', index: 0 })}
             changeLabel="Ubah tanggal dan jam"
           />
+          <div className="flex items-start justify-between gap-6 py-4">
+            <div className="w-full max-w-xs">
+              <label htmlFor="tee-box" className="text-[0.65rem] font-medium uppercase tracking-[0.3em] text-[#C9A96E]">Tee Box</label>
+              <select
+                id="tee-box"
+                value={state.teeBox}
+                onChange={(event) => dispatch({ type: 'SET_TEE_BOX', value: event.target.value })}
+                className="mt-1.5 w-full rounded-lg border border-[#C9A96E]/25 bg-[#0F2A20] px-3 py-2 text-sm text-[#F6F2EA] focus:border-[#C9A96E] focus:outline-none"
+              >
+                <option value="Tee 1">Tee 1</option>
+                <option value="Tee 10">Tee 10</option>
+              </select>
+            </div>
+            <ReviewRow
+              label="Package"
+              value={packageType}
+              onChange={() => dispatch({ type: 'GO_TO_STEP', index: 0 })}
+              changeLabel="Ubah tanggal untuk mengganti paket weekday/weekend"
+            />
+          </div>
           <ReviewRow
             label="Players"
             value={pluralize(state.players, 'player')}

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { after, test } from 'node:test';
 import { createRequire } from 'node:module';
 import pg from 'pg';
@@ -29,14 +29,19 @@ const sessionTokens = new Set();
 const createdSlotIds = new Set();
 const createdInquiryIds = new Set();
 const testDates = new Set();
-const testAddress = `192.0.2.${Math.floor(Math.random() * 254) + 1}`;
-const holdAddresses = [
-  `192.0.2.${Math.floor(Math.random() * 254) + 1}`,
-  `192.0.2.${Math.floor(Math.random() * 254) + 1}`,
-];
+function testIpAddress() {
+  const hex = randomUUID().replaceAll('-', '').slice(0, 4);
+  const thirdOctet = Number.parseInt(hex.slice(0, 2), 16);
+  const fourthOctet = (Number.parseInt(hex.slice(2), 16) % 254) + 1;
+  return `198.18.${thirdOctet}.${fourthOctet}`;
+}
+
+const testAddress = testIpAddress();
+const holdAddresses = [testIpAddress(), testIpAddress()];
 const rateLimitKeys = [
   `rate:login:${testAddress}`,
   `rate:register:${testAddress}`,
+  `rate:holds:${testAddress}`,
   ...holdAddresses.map((address) => `rate:holds:${address}`),
 ];
 let userId;
@@ -93,7 +98,7 @@ function requestHeaders(extra = {}) {
 }
 
 async function apiRequest(path, options = {}) {
-  const headers = requestHeaders(options.headers);
+  const headers = requestHeaders({ 'x-forwarded-for': testAddress, ...options.headers });
   const method = options.method?.toUpperCase() || 'GET';
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !headers['x-csrf-token'] && cookieJar.has('golf_csrf')) {
     headers['x-csrf-token'] = decodeURIComponent(cookieJar.get('golf_csrf'));
@@ -437,6 +442,7 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       termsAccepted: true,
       guest: { name: 'Integration Test', phone: '081234567890', email: `integration-booking-${randomUUID()}@example.test` },
       buggy: false,
+      teeBox: 'Tee 10',
       extras: {},
       clientTotal: quote.total,
     };
@@ -457,6 +463,20 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       assert.equal(booking.paymentMode, 'pay_at_club');
       assert.ok(['queued', 'sent'].includes(booking.emailNotification));
       bookingId = booking.id;
+
+      const email = await pool.query(
+        'SELECT html_body,attachments FROM email_outbox WHERE dedupe_key=$1',
+        [`booking-confirmed:${bookingId}`],
+      );
+      assert.equal(email.rowCount, 1);
+      assert.match(email.rows[0].html_body, /Dress code &amp; course etiquette/);
+      assert.match(email.rows[0].html_body, /24 hours before tee-off/);
+      assert.match(email.rows[0].html_body, /Tee 10/);
+      assert.equal(email.rows[0].attachments.length, 2);
+      assert.equal(email.rows[0].attachments[0].content_type, 'image/png');
+      assert.equal(Buffer.from(email.rows[0].attachments[0].content, 'base64').subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+      assert.equal(email.rows[0].attachments[1].content_type, 'application/pdf');
+      assert.equal(Buffer.from(email.rows[0].attachments[1].content, 'base64').subarray(0, 4).toString(), '%PDF');
 
       const replayResponse = await apiRequest('/api/v1/bookings', options);
       assert.equal(replayResponse.status, 201);
@@ -624,7 +644,62 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       const body = await responseJson(response);
       assert.equal(body.id, bookingId);
       assert.equal(body.paymentMode, 'pay_at_club');
+      assert.equal(body.teeBox, 'Tee 10');
+      assert.equal(body.paymentStatus, 'unpaid');
+      assert.equal(body.packageType, 'Weekend');
       assert.equal(body.status, 'confirmed');
+    });
+
+    await t.test('validates the opaque e-ticket and reports its booking details', async () => {
+      await pool.query("UPDATE users SET role='staff' WHERE id=$1", [userId]);
+      const token = createHmac('sha256', process.env.QR_SIGNING_SECRET)
+        .update(`booking-ticket:v1:${bookingId}`)
+        .digest('base64url');
+      const response = await apiRequest('/api/v1/staff/tickets/validate', {
+        method: 'POST',
+        body: { qrToken: token },
+      });
+      await expectStatus(response, 200);
+      const result = await responseJson(response);
+      assert.equal(result.valid, false);
+      assert.equal(result.code, 'wrong_date');
+      assert.equal(result.booking.guestName, 'Integration Test');
+      assert.equal(result.booking.teeTime, rescheduleSlot.time);
+      assert.equal(result.booking.paymentStatus, 'unpaid');
+      assert.equal(result.booking.attendanceStatus, 'confirmed');
+      await pool.query("UPDATE users SET role='member' WHERE id=$1", [userId]);
+    });
+
+    await t.test('admin report filters payment status and audits manual overrides', async () => {
+      await pool.query("UPDATE users SET role='admin' WHERE id=$1", [userId]);
+      const initial = await apiRequest(`/api/v1/admin/bookings?date=${testDate}&attendance=not_arrived&payment=unpaid`);
+      await expectStatus(initial, 200);
+      assert.ok((await responseJson(initial)).bookings.some((item) => item.id === bookingId));
+
+      const paymentUpdate = await apiRequest(`/api/v1/admin/bookings/${bookingId}`, {
+        method: 'PATCH',
+        body: { paymentStatus: 'down_payment' },
+      });
+      await expectStatus(paymentUpdate, 200);
+      assert.equal((await responseJson(paymentUpdate)).paymentStatus, 'down_payment');
+      const filtered = await apiRequest(`/api/v1/admin/bookings?date=${testDate}&payment=down_payment`);
+      await expectStatus(filtered, 200);
+      assert.ok((await responseJson(filtered)).bookings.some((item) => item.id === bookingId));
+
+      const attendanceUpdate = await apiRequest(`/api/v1/admin/bookings/${bookingId}`, {
+        method: 'PATCH',
+        body: { attendanceStatus: 'checked_in' },
+      });
+      await expectStatus(attendanceUpdate, 200);
+      const checkIn = await responseJson(attendanceUpdate);
+      assert.equal(checkIn.attendanceStatus, 'checked_in');
+      assert.ok(checkIn.checkedInAt);
+
+      await apiRequest(`/api/v1/admin/bookings/${bookingId}`, {
+        method: 'PATCH',
+        body: { attendanceStatus: 'confirmed', paymentStatus: 'unpaid' },
+      });
+      await pool.query("UPDATE users SET role='member' WHERE id=$1", [userId]);
     });
 
     await t.test('issues a short-lived member check-in QR token', async () => {

@@ -1,6 +1,6 @@
 # Spesifikasi API dan Database — Damai Indah Golf
 
-**Versi:** 1.2  
+**Versi:** 1.3  
 **Status:** Spesifikasi untuk implementasi  
 **Tanggal:** 5 November 2026  
 **Audiens:** Backend, DevOps, QA, dan frontend
@@ -28,8 +28,9 @@ ataupun mengonfirmasi penerimaan uang. Lihat
 | Mata uang | Rupiah sebagai integer (`BIGINT` di penyimpanan); tidak menggunakan floating point |
 | Harga | Ditentukan server dari `rate_cards`, layanan aktif, dan snapshot pajak. `clientTotal` hanya untuk mendeteksi perubahan |
 | Kapasitas | Baris `tee_slots` menjadi penghitung kapasitas atomik untuk booking dan hold aktif |
-| Pembayaran | Seluruh pembayaran diselesaikan langsung di lokasi klub dan di luar aplikasi |
-| Mode pembayaran | Reservasi dikonfirmasi online; pembayaran dilakukan saat check-in di klub |
+| Pembayaran | Seluruh pembayaran diselesaikan langsung di lokasi klub; aplikasi tidak memproses pembayaran |
+| Pencatatan pembayaran | Role staff/admin dapat mencatat `unpaid`, `down_payment`, atau `paid` sebagai informasi operasional, bukan bukti transaksi |
+| Mode pembayaran | Reservasi dikonfirmasi online; pembayaran dilakukan di lokasi klub |
 
 ### Kontrak terhadap frontend
 
@@ -669,16 +670,20 @@ completed, cancelled, kapasitas, booked, held, dan available.
 
 #### `GET /api/v1/bookings/{id}/qr`
 
-Pemilik. Menghasilkan QR token bertanda tangan berumur pendek; token memuat
-booking ID dan nonce, bukan PII. Endpoint check-in memverifikasi signature,
-tanggal, status, dan nonce.
+Pemilik. Menghasilkan QR bertanda tangan berumur pendek untuk ditampilkan di
+area member. E-ticket email memakai token opaque HMAC yang hash-nya disimpan
+di booking; token tersebut tidak memuat booking ID atau PII. Keduanya divalidasi
+di server. Tiket email juga dilampirkan sebagai PDF dan memuat tee box (`Tee 1`
+atau `Tee 10`), paket (`Weekday`/`Weekend`), ketentuan pembatalan H-1, dan
+dress code/etiket.
 
 ### 5.3 Pembayaran di lokasi
 
-Tidak ada endpoint pembayaran, checkout, payment status, refund, maupun webhook.
-Reservasi dikonfirmasi oleh aplikasi; seluruh pengumpulan pembayaran dan
-penyelesaian transaksi dilakukan langsung oleh klub di lokasi. Aplikasi tidak
-mencatat metode pembayaran atau mengonfirmasi bahwa pembayaran telah diterima.
+Tidak ada endpoint payment gateway, checkout, refund, atau webhook. Reservasi
+dikonfirmasi oleh aplikasi; seluruh pengumpulan pembayaran dan penyelesaian
+transaksi dilakukan langsung oleh klub di lokasi. `payment_status` adalah
+pencatatan operasional manual oleh staff/admin (`unpaid`, `down_payment`,
+`paid`), bukan konfirmasi pembayaran oleh aplikasi atau integrasi kasir.
 Aturan refund atau penyesuaian biaya, bila berlaku, ditangani klub di lokasi.
 
 ### 5.4 Member dan handicap
@@ -723,10 +728,12 @@ agar request bersamaan tidak melewati batas. Staff verify menyimpan
 | `POST /api/v1/auth/email/verify` | Token email | Verifikasi alamat email |
 
 Verifikasi nomor telepon belum aktif sampai provider SMS/OTP dikonfigurasi.
-Booking dan pembatalan membuat pesan konfirmasi dalam email outbox. Pengiriman
-menggunakan Resend (`RESEND_API_KEY`, `EMAIL_FROM`); tanpa konfigurasi, pesan
-tetap berstatus antre dan admin dapat mencoba ulang. Inquiry publik tersimpan
-untuk tindak lanjut staf; pemberitahuan email memerlukan `CLUB_CONTACT_EMAIL`.
+Booking dan pembatalan membuat pesan konfirmasi dalam email outbox. Konfirmasi
+booking menyertakan HTML premium dengan QR inline dan PDF e-ticket. Pengiriman
+menggunakan Resend (`RESEND_API_KEY`, `EMAIL_FROM`); tanpa konfigurasi atau saat
+`EMAIL_DELIVERY_DISABLED=true`, pesan tetap tertunda dan admin dapat memantau
+outbox atau mencoba ulang. Inquiry publik tersimpan untuk tindak lanjut staf;
+pemberitahuan email memerlukan `CLUB_CONTACT_EMAIL`.
 
 Penukaran poin menggunakan satu transaksi dan conditional debit:
 
@@ -760,12 +767,15 @@ boleh melalui proses verifikasi email dan tidak boleh menghasilkan earn ganda.
 | Endpoint | Role | Aturan |
 |---|---|---|
 | `POST /api/v1/staff/check-in` | Staff | Verifikasi QR, booking `confirmed`, tanggal lokal hari ini; transisi ke `checked_in` |
+| `POST /api/v1/staff/tickets/validate` | Staff | Validasi QR e-ticket tanpa mengubah status kehadiran; mengembalikan valid/invalid, nama pemain, tee-off, status pembayaran, dan status kehadiran |
 | `POST /api/v1/staff/bookings/{id}/complete` | Staff | Selesaikan ronde; idempotently memicu earn, cashback, outbox |
 | `POST /api/v1/staff/rounds/{id}/verify` | Staff | Verifikasi skor/sumber, hitung ulang handicap dan tier |
 | `POST /api/v1/staff/vouchers/{code}/redeem` | Staff | Gunakan voucher aktif, kaitkan ke booking dalam transaksi |
 | `GET /api/v1/staff/tee-sheet?date=YYYY-MM-DD` | Staff | Lihat kapasitas, booking, hold dan status slot |
 | `GET /api/v1/staff/tee-sheet?date=YYYY-MM-DD&q=...` | Staff | Cari reference, nama, atau telepon; respons memuat ringkasan operasional harian |
 | `POST /api/v1/staff/bookings/{id}/check-in` | Staff + CSRF | Check-in berdasarkan booking yang ditemukan; hanya pada tanggal tee time |
+| `GET /api/v1/admin/bookings?date=YYYY-MM-DD&attendance=all|not_arrived|arrived&payment=all|unpaid|down_payment|paid&q=...` | Admin | Laporan reservasi harian dan filter kehadiran/pencatatan pembayaran |
+| `PATCH /api/v1/admin/bookings/{id}` | Admin + CSRF | Override `attendanceStatus` (`confirmed`/`checked_in`) dan/atau `paymentStatus`; mencatat audit dan `checkedInAt` |
 | `PUT /api/v1/admin/tee-sheet/blocks` | Admin | Blokir slot; konflik booking aktif memerlukan pemindahan eksplisit |
 | `PUT /api/v1/admin/rate-cards` | Admin | Ubah tarif untuk booking baru; validasi overlap |
 | `PUT /api/v1/admin/service-items` | Admin | Kelola harga/layanan aktif untuk booking baru |

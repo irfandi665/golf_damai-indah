@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { apiRequest } from '@/lib/api-client';
+import QrCheckInScanner from './QrCheckInScanner';
 
 const fieldClass = 'mt-2 w-full rounded-xl border border-[#C9A96E]/25 bg-[#0F2A20] px-3 py-2.5 text-sm text-[#F6F2EA] focus:border-[#C9A96E] focus:outline-none';
 const buttonClass = 'rounded-full border border-[#C9A96E]/50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#C9A96E] hover:bg-[#C9A96E] hover:text-[#0F2A20] disabled:opacity-50';
@@ -23,6 +24,10 @@ export default function StaffConsole() {
   const [serviceItems, setServiceItems] = useState([]);
   const [selected, setSelected] = useState([]);
   const [inquiries, setInquiries] = useState([]);
+  const [adminReport, setAdminReport] = useState(null);
+  const [emailOutbox, setEmailOutbox] = useState(null);
+  const [attendanceFilter, setAttendanceFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [reload, setReload] = useState(0);
@@ -40,11 +45,20 @@ export default function StaffConsole() {
     if (role === 'admin') apiRequest('/api/v1/admin/inquiries?status=new')
       .then(setInquiries)
       .catch((reason) => setError(reason.message));
+    if (role === 'admin') apiRequest('/api/v1/admin/email-outbox')
+      .then(setEmailOutbox)
+      .catch((reason) => setError(reason.message));
+    if (role === 'admin') {
+      const reportQuery = new URLSearchParams({ date, attendance: attendanceFilter, payment: paymentFilter, q: search });
+      apiRequest(`/api/v1/admin/bookings?${reportQuery}`)
+        .then(setAdminReport)
+        .catch((reason) => setError(reason.message));
+    }
     if (role === 'admin') fetch('/api/v1/pricing')
       .then((response) => response.json())
       .then((pricing) => setServiceItems(pricing.services || []))
       .catch((reason) => setError(reason.message));
-  }, [role, date, search, reload]);
+  }, [role, date, search, reload, attendanceFilter, paymentFilter]);
 
   const selectedSlots = useMemo(() => new Set(selected), [selected]);
   const todayJakarta = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
@@ -65,14 +79,6 @@ export default function StaffConsole() {
       body: { courseId: 1, date, slotIds: selected, blocked, reason: 'Blocked by staff' },
     }), blocked ? 'Selected slots blocked.' : 'Selected slots reopened.');
     setSelected([]);
-  }
-
-  async function submitCheckIn(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const qrToken = new FormData(form).get('qrToken');
-    await run(() => apiRequest('/api/v1/staff/check-in', { method: 'POST', body: { qrToken } }), 'Booking checked in.');
-    form.reset();
   }
 
   async function submitComplete(event) {
@@ -204,11 +210,7 @@ export default function StaffConsole() {
       </section>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <form onSubmit={submitCheckIn} className="space-y-4 rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] p-6">
-          <h2 className="font-[family-name:var(--font-heading)] text-2xl">QR check-in</h2>
-          <FormField label="Scan or paste booking QR token"><textarea name="qrToken" required rows={3} className={fieldClass} /></FormField>
-          <button className={buttonClass}>Check in booking</button>
-        </form>
+        <QrCheckInScanner onCheckedIn={() => setReload((value) => value + 1)} />
         <form onSubmit={submitComplete} className="space-y-4 rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] p-6">
           <h2 className="font-[family-name:var(--font-heading)] text-2xl">Complete a round</h2>
           <FormField label="Booking ID"><input name="bookingId" required className={fieldClass} /></FormField>
@@ -219,6 +221,50 @@ export default function StaffConsole() {
 
       {role === 'admin' && (
         <>
+          <section className="mt-8 rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] p-5 sm:p-7">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div><h2 className="font-[family-name:var(--font-heading)] text-3xl">Admin reservation report</h2><p className="mt-1 text-xs text-[#F6F2EA]/55">Manual status updates are audited. Payment status records payments received at the club only.</p></div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField label="Attendance">
+                  <select value={attendanceFilter} onChange={(event) => setAttendanceFilter(event.target.value)} className={fieldClass}>
+                    <option value="all">All attendance</option><option value="not_arrived">Belum datang</option><option value="arrived">Sudah datang</option>
+                  </select>
+                </FormField>
+                <FormField label="Payment status">
+                  <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)} className={fieldClass}>
+                    <option value="all">All payments</option><option value="unpaid">Belum dibayar</option><option value="down_payment">Down payment</option><option value="paid">Lunas</option>
+                  </select>
+                </FormField>
+              </div>
+            </div>
+            {!adminReport ? <p role="status" className="mt-5 text-sm text-[#F6F2EA]/50">Loading admin report…</p> : adminReport.bookings.length === 0 ? <p className="mt-5 text-sm text-[#F6F2EA]/50">No reservations match these filters.</p> : (
+              <div className="mt-5 overflow-x-auto">
+                <table className="w-full min-w-[900px] border-collapse text-left text-xs">
+                  <thead><tr className="border-b border-[#C9A96E]/20 text-[0.6rem] uppercase tracking-[0.12em] text-[#F6F2EA]/45">
+                    <th className="p-3">Tee time / Booking</th><th className="p-3">Player</th><th className="p-3">Tee box / package</th><th className="p-3">Attendance</th><th className="p-3">Payment at club</th><th className="p-3">Check-in time</th>
+                  </tr></thead>
+                  <tbody>{adminReport.bookings.map((booking) => (
+                    <tr key={booking.id} className="border-b border-[#C9A96E]/10 align-top">
+                      <td className="p-3"><strong>{booking.teeTime}</strong><span className="mt-1 block text-[#F6F2EA]/50">{booking.reference} · {booking.players} player(s)</span></td>
+                      <td className="p-3">{booking.guestName}<span className="mt-1 block text-[#F6F2EA]/50">{booking.guestPhone}</span></td>
+                      <td className="p-3">{booking.teeBox}<span className="mt-1 block text-[#F6F2EA]/50">{booking.packageType}</span></td>
+                      <td className="p-3">
+                        <select aria-label={`Attendance status for ${booking.reference}`} value={booking.attendanceStatus === 'confirmed' ? 'confirmed' : 'checked_in'} disabled={!['confirmed', 'checked_in'].includes(booking.attendanceStatus)} onChange={(event) => run(() => apiRequest(`/api/v1/admin/bookings/${encodeURIComponent(booking.id)}`, { method: 'PATCH', body: { attendanceStatus: event.target.value } }), 'Attendance status updated.')} className="rounded-lg border border-[#C9A96E]/25 bg-[#0F2A20] px-2 py-2">
+                          <option value="confirmed">Belum datang</option><option value="checked_in">Sudah datang</option>
+                        </select>
+                      </td>
+                      <td className="p-3">
+                        <select aria-label={`Payment status for ${booking.reference}`} value={booking.paymentStatus} disabled={!['confirmed', 'checked_in'].includes(booking.attendanceStatus)} onChange={(event) => run(() => apiRequest(`/api/v1/admin/bookings/${encodeURIComponent(booking.id)}`, { method: 'PATCH', body: { paymentStatus: event.target.value } }), 'Onsite payment status updated.')} className="rounded-lg border border-[#C9A96E]/25 bg-[#0F2A20] px-2 py-2">
+                          <option value="unpaid">Belum dibayar</option><option value="down_payment">Down payment</option><option value="paid">Lunas</option>
+                        </select>
+                      </td>
+                      <td className="p-3 text-[#F6F2EA]/65">{booking.checkedInAt ? new Date(booking.checkedInAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : '—'}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
+          </section>
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
             <form onSubmit={submitCourseUpdate} className="space-y-4 rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] p-6">
               <h2 className="font-[family-name:var(--font-heading)] text-2xl">Course operations notice</h2>
@@ -264,10 +310,24 @@ export default function StaffConsole() {
             )}
           </section>
 
-          <button type="button" onClick={() => run(async () => {
-            const result = await apiRequest('/api/v1/admin/email-outbox/process', { method: 'POST', body: {} });
-            setNotice(`Email outbox: ${result.sent} sent, ${result.failed} still pending.`);
-          }, '')} className={`${buttonClass} mt-8`}>Retry queued email notifications</button>
+          <section className="mt-8 rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div><h2 className="font-[family-name:var(--font-heading)] text-2xl">Email delivery monitor</h2><p className="mt-1 text-xs text-[#F6F2EA]/50">“Sent” means accepted by the provider; confirm final delivery in the Resend dashboard.</p></div>
+              <button type="button" onClick={() => run(async () => {
+                const result = await apiRequest('/api/v1/admin/email-outbox/process', { method: 'POST', body: {} });
+                setNotice(`Email outbox: ${result.sent} sent, ${result.failed} still pending.`);
+                setEmailOutbox(await apiRequest('/api/v1/admin/email-outbox'));
+              }, '')} className={buttonClass}>Retry queued emails</button>
+            </div>
+            {!emailOutbox ? <p role="status" className="mt-4 text-sm text-[#F6F2EA]/50">Loading email status…</p> : (
+              <>
+                <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[['Pending', emailOutbox.pending], ['Failed / pending', emailOutbox.failedPending], ['Accepted by provider', emailOutbox.sent], ['Oldest pending', emailOutbox.oldestPending ? new Date(emailOutbox.oldestPending).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : '—']].map(([label, value]) => <div key={label} className="rounded-xl border border-[#C9A96E]/15 bg-[#0F2A20]/40 p-3"><dt className="text-[0.6rem] uppercase tracking-[0.12em] text-[#F6F2EA]/45">{label}</dt><dd className="mt-1 text-sm tabular-nums text-[#C9A96E]">{value}</dd></div>)}
+                </dl>
+                {emailOutbox.recentFailures.length > 0 && <ul className="mt-4 space-y-2 text-xs text-red-100">{emailOutbox.recentFailures.map((failure) => <li key={failure.id}>{failure.lastError} · attempts {failure.attempts} · {new Date(failure.createdAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</li>)}</ul>}
+              </>
+            )}
+          </section>
         </>
       )}
     </section>

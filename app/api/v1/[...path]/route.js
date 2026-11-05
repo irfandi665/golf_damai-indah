@@ -42,8 +42,11 @@ import {
   checkInBookingById,
   completeBooking,
   getTeeSheet,
+  getAdminBookingReport,
   makeBookingQr,
   redeemVoucher,
+  validateBookingTicket,
+  updateAdminBooking,
   updateRateCard,
   updateServiceItem,
   verifyRound,
@@ -60,7 +63,8 @@ import {
   listInquiries,
   updateInquiryStatus,
 } from '@/lib/server/public-service';
-import { processEmailOutbox, queueEmail } from '@/lib/server/email-service';
+import { getEmailOutboxStatus, processEmailOutbox, queueEmail } from '@/lib/server/email-service';
+import { buildBookingConfirmationEmail } from '@/lib/server/booking-ticket';
 import {
   getNotificationPreferences,
   processScheduledNotifications,
@@ -233,11 +237,20 @@ async function dispatch(request, segments) {
     const result = await createBooking({ session, body, idempotencyKey: requireIdempotencyKey(request) });
     const booking = await getBooking({ id: result.body.id, session });
     const emailKey = `booking-confirmed:${result.body.id}`;
+    const email = await buildBookingConfirmationEmail({
+      ...booking,
+      displayDate: new Date(`${booking.date}T12:00:00Z`).toLocaleDateString('en-ID', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+      }),
+      totalLabel: `Rp${new Intl.NumberFormat('id-ID').format(booking.total)}`,
+    });
     await queueEmail({
       dedupeKey: emailKey,
       to: booking.guest.email,
       subject: `Tee time confirmed — ${booking.reference}`,
-      text: `Your tee time reservation is confirmed.\n\nReference: ${booking.reference}\nDate: ${booking.date}\nTime: ${booking.time}\nPlayers: ${booking.players}\nTotal due at the club: Rp${new Intl.NumberFormat('id-ID').format(booking.total)}.\n\nPayment is settled at the club. This website does not process payments.`,
+      text: `Your tee time reservation is confirmed.\n\nReference: ${booking.reference}\nCourse: ${booking.courseName}\nDate: ${booking.date}\nTee-off: ${booking.time}\nPlayers: ${booking.players}\nTee box: ${booking.teeBox}\nPackage: ${booking.packageType}\nTotal due at the club: Rp${new Intl.NumberFormat('id-ID').format(booking.total)}.\n\nCancellation is free until 24 hours before tee-off. Please follow the dress code and course etiquette in your attached e-ticket.\n\nPayment is made at the club. This website does not process or confirm payments.`,
+      html: email.html,
+      attachments: email.attachments,
     });
     const delivery = await processEmailOutbox({ limit: 1, dedupeKey: emailKey });
     return json({
@@ -295,11 +308,20 @@ async function dispatch(request, segments) {
     });
     const booking = await getBooking({ id: subresource, session });
     const emailKey = `booking-rescheduled:${subresource}:${requireIdempotencyKey(request)}`;
+    const email = await buildBookingConfirmationEmail({
+      ...booking,
+      displayDate: new Date(`${booking.date}T12:00:00Z`).toLocaleDateString('en-ID', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+      }),
+      totalLabel: `Rp${new Intl.NumberFormat('id-ID').format(booking.total)}`,
+    });
     await queueEmail({
       dedupeKey: emailKey,
       to: booking.guest.email,
       subject: `Reservation rescheduled — ${booking.reference}`,
       text: `Your tee time reservation has been rescheduled.\n\nReference: ${booking.reference}\nNew date: ${booking.date}\nNew time: ${booking.time}\nUpdated total due at the club: Rp${new Intl.NumberFormat('id-ID').format(booking.total)}.\nPrice difference: ${result.body.difference >= 0 ? '+' : ''}Rp${new Intl.NumberFormat('id-ID').format(result.body.difference)}.\n\nPayment is settled at the club. This website does not process payments.`,
+      html: email.html,
+      attachments: email.attachments,
     });
     const delivery = await processEmailOutbox({ limit: 1, dedupeKey: emailKey });
     const waitlistNotification = await offerWaitlistForSlot(Number(result.body.releasedSlotId));
@@ -359,6 +381,13 @@ async function dispatch(request, segments) {
     await requireRole(session, ['staff', 'admin']);
     const body = await requestBody(request);
     return json(await checkInBooking({ staffId: session.userId, qrToken: body.qrToken }));
+  }
+
+  if (resource === 'staff' && subresource === 'tickets' && identifier === 'validate' && method === 'POST') {
+    const session = await getSession(request, { required: true });
+    await requireRole(session, ['staff', 'admin']);
+    const body = await requestBody(request);
+    return json(await validateBookingTicket({ qrToken: body.qrToken }));
   }
 
   if (resource === 'staff' && subresource === 'bookings' && identifier && action === 'check-in' && method === 'POST') {
@@ -458,6 +487,35 @@ async function dispatch(request, segments) {
     const session = await getSession(request, { required: true, csrf: true });
     await requireRole(session, ['admin']);
     return json(await processEmailOutbox({ limit: 20 }));
+  }
+
+  if (resource === 'admin' && subresource === 'email-outbox' && !identifier && method === 'GET') {
+    const session = await getSession(request, { required: true });
+    await requireRole(session, ['admin']);
+    return json(await getEmailOutboxStatus());
+  }
+
+  if (resource === 'admin' && subresource === 'bookings' && !identifier && method === 'GET') {
+    const session = await getSession(request, { required: true });
+    await requireRole(session, ['admin']);
+    return json(await getAdminBookingReport({
+      date: url.searchParams.get('date'),
+      attendance: url.searchParams.get('attendance') || 'all',
+      payment: url.searchParams.get('payment') || 'all',
+      search: url.searchParams.get('q') || '',
+    }));
+  }
+
+  if (resource === 'admin' && subresource === 'bookings' && identifier && method === 'PATCH') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['admin']);
+    const body = await requestBody(request);
+    return json(await updateAdminBooking({
+      adminId: session.userId,
+      bookingId: identifier,
+      attendanceStatus: body.attendanceStatus,
+      paymentStatus: body.paymentStatus,
+    }));
   }
 
   if (resource === 'jobs' && subresource === 'notifications' && identifier === 'process' && method === 'POST') {

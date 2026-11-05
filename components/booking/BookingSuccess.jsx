@@ -31,6 +31,7 @@ function buildCalendarUrl({ dateKey, time, reference, players }) {
 
 export default function BookingSuccess({ state, quote, onReset }) {
   const caddy = CADDY_OPTIONS.find((option) => option.id === state.caddy);
+  const packageType = [0, 6].includes(new Date(`${state.dateKey}T12:00:00Z`).getUTCDay()) ? 'Weekend' : 'Weekday';
 
   return (
     <motion.section
@@ -81,6 +82,8 @@ export default function BookingSuccess({ state, quote, onReset }) {
             ['Date', formatLongDate(state.dateKey)],
             ['Tee Time', state.slot.time],
             ['Players', pluralize(state.players, 'player')],
+            ['Tee Box', state.teeBox],
+            ['Package', packageType],
             ['Caddy', `${caddy.label} × ${state.players}`],
             ['Buggy', state.buggy ? pluralize(Math.ceil(state.players / 2), 'cart') : 'Walking'],
             ['Total (incl. tax)', formatCurrency(quote.total)],

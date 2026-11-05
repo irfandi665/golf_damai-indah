@@ -187,6 +187,13 @@ tentang layanan, migrasi, serta batas kesiapan production, lihat
   update lapangan langsung atau harian.
 - Tee sheet staf menyediakan pencarian booking, check-in berdasarkan booking,
   kapasitas, serta ringkasan operasional harian.
+- Email konfirmasi booking menyertakan QR check-in dan PDF e-ticket. Staf
+  dapat memindai QR atau memasukkan token pada `/staff`; akses kamera browser
+  memerlukan localhost atau HTTPS.
+- Admin dapat melihat reservasi per tanggal, memfilter kehadiran/pencatatan
+  pembayaran, serta melakukan override yang tercatat di audit log. Status
+  `unpaid`, `down_payment`, dan `paid` hanya pencatatan operasional—semua
+  pembayaran tetap berlangsung di lokasi dan tidak diproses aplikasi.
 - Panel `/staff` hanya dapat diakses akun yang telah diberi role staff/admin.
 - Verifikasi nomor telepon belum aktif karena provider SMS/OTP belum
   dikonfigurasi.
@@ -208,6 +215,10 @@ tentang layanan, migrasi, serta batas kesiapan production, lihat
   sudah dibuat, dan `DATABASE_URL` benar.
 - **Rate limit atau tes Redis gagal:** periksa Redis berjalan dan
   `REDIS_URL=redis://127.0.0.1:6379` dapat dijangkau.
+- **Email tidak terkirim:** periksa status outbox di panel admin, konfigurasi
+  `RESEND_API_KEY` dan domain `EMAIL_FROM`, serta log provider. Untuk pengujian
+  lokal yang tidak boleh mengirim email, jalankan server dengan
+  `EMAIL_DELIVERY_DISABLED=true`; pesan akan tetap tertunda di outbox.
 - **Migrasi gagal:** pastikan URL koneksi mengarah ke database project dan
   user memiliki izin membuat extension/tabel. Minta administrator database
   mengaktifkan `pgcrypto` dan `citext` jika user tidak memiliki izin.

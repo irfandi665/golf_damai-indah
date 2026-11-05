@@ -31,7 +31,7 @@ export function PriceSummary({ state, quote, onBack, onNext, actionLabel, action
         Your Reservation
       </p>
 
-      {quote ? (
+      {quote && state.slot ? (
         <>
           <p className="mt-4 font-[family-name:var(--font-heading)] text-3xl font-medium leading-tight text-[#F6F2EA]">
             {state.slot.time}
