@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiRequest } from '@/lib/api-client';
+import NotificationPreferences from './NotificationPreferences';
 
 const fieldClass = 'mt-2 w-full rounded-xl border border-[#C9A96E]/25 bg-white/[0.04] px-4 py-3 text-sm text-[#F6F2EA] focus:border-[#C9A96E] focus:outline-none focus:ring-2 focus:ring-[#C9A96E]/40';
 
@@ -112,6 +113,7 @@ export default function MemberProfileSecurity() {
               <button type="submit" className="rounded-full border border-[#C9A96E]/50 px-6 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A96E]">Update password</button>
               <p className="text-xs"><Link href="/member/forgot-password" className="text-[#C9A96E] underline underline-offset-4">Forgot your password?</Link></p>
             </form>
+            <NotificationPreferences />
           </div>
         </div>
       )}

@@ -26,6 +26,7 @@ function MemberNavigation() {
   const links = [
     ['Overview', '#member-heading'],
     ['Bookings', '#bookings'],
+    ['Waitlist', '#waitlist'],
     ['Handicap', '#handicap'],
     ['Loyalty', '#loyalty'],
   ];
@@ -207,6 +208,7 @@ function DashboardView({ data, now, onRefresh }) {
               dispatch={dispatchToApi}
               todayKey={todayKey}
               voucherValidUntil={voucherValidUntil}
+              onRefresh={onRefresh}
             />
           </div>
 

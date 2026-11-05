@@ -180,6 +180,13 @@ tentang layanan, migrasi, serta batas kesiapan production, lihat
 - Halaman publik: course & fasilitas, harga, event, Academy, dan kontak.
 - Area member: dashboard, booking, profil, handicap, loyalty, serta keamanan
   akun.
+- Waitlist dengan verifikasi email tamu, tawaran hold 10 menit, dan link untuk
+  menyelesaikan booking; perubahan jadwal member tersedia hingga 24 jam sebelum
+  waktu booking asal.
+- Member dapat mengatur persetujuan email, pengingat tee time 24/3 jam, dan
+  update lapangan langsung atau harian.
+- Tee sheet staf menyediakan pencarian booking, check-in berdasarkan booking,
+  kapasitas, serta ringkasan operasional harian.
 - Panel `/staff` hanya dapat diakses akun yang telah diberi role staff/admin.
 - Verifikasi nomor telepon belum aktif karena provider SMS/OTP belum
   dikonfigurasi.
@@ -188,7 +195,12 @@ tentang layanan, migrasi, serta batas kesiapan production, lihat
 - Informasi klub yang belum diverifikasi ditandai pada website dan perlu
   dikonfirmasi sebelum dipakai sebagai informasi operasional.
 - Sebelum production, siapkan konfigurasi email, secret yang aman, backup,
-  observability, dan worker untuk pemrosesan job/outbox.
+  serta observability. Untuk memproses email terjadwal/waitlist dan pengingat,
+  atur `NOTIFICATION_JOB_TOKEN` serta konfigurasi Resend, kemudian jadwalkan
+  `POST /api/v1/jobs/notifications/process` setiap 5–15 menit. Detail ada di
+  [panduan backend](./docs/backend-api-setup.md).
+- Kebijakan no-show dan penalti belum ditetapkan klub; fitur penandaan/penalti
+  no-show sengaja belum diaktifkan.
 
 ## Pemecahan masalah
 

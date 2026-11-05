@@ -379,6 +379,17 @@ ledger dalam transaksi yang sama. `balance_after` adalah saldo sesudah entry.
 Untuk debit, saldo diperiksa dengan `UPDATE ... WHERE balance >= debit`; nol
 baris berarti saldo tidak cukup.
 
+### Tambahan migrasi 004
+
+- `tee_time_waitlist` menyimpan pendaftar, slot, jumlah pemain, status
+  verifikasi/hold, serta hash token verifikasi dan klaim sekali pakai.
+- `member_notification_preferences` menyimpan consent email, pengingat tee
+  time, status lapangan, frekuensi update (langsung/harian), dan lead time
+  pengingat (24 atau 3 jam).
+- `email_outbox.category` memisahkan pesan transaksional dari notifikasi
+  opsional agar email opsional yang belum terkirim dapat dihapus saat consent
+  dicabut.
+
 ## 4. Aturan validasi server
 
 Validasi bentuk request dilakukan sebelum transaksi; validasi kepemilikan,
@@ -607,6 +618,55 @@ adalah `confirmed`.
 
 Response: `{ "booking": {...}, "kind": "free|late", "voucher": {...}|null }`.
 
+#### `POST /api/v1/bookings/{id}/reschedule`
+
+Khusus member pemilik booking berstatus `confirmed`; membutuhkan header
+`Idempotency-Key`. Hanya dapat dilakukan setidaknya 24 jam sebelum tee time
+asal. Jumlah pemain dan layanan yang dipilih tetap; tee time tujuan harus
+tersedia, terbuka, berada dalam jendela 60 hari, dan minimal 60 menit dari
+waktu permintaan. Server mengunci kedua slot, memindahkan kapasitas secara
+atomik, menghitung ulang green fee dan pajak, serta mencatat audit.
+Selisih harga diselesaikan di klub; tidak ada pembayaran/refund di aplikasi.
+
+#### Waitlist
+
+| Method dan path | Auth | Fungsi |
+|---|---|---|
+| `POST /api/v1/waitlist` | Sesi + CSRF | Member terverifikasi atau tamu mendaftar untuk slot yang tidak cukup kapasitasnya |
+| `POST /api/v1/waitlist/verify` | Sesi + CSRF + token | Verifikasi email tamu melalui tautan sekali pakai |
+| `POST /api/v1/waitlist/claim` | Sesi + CSRF + token | Klaim hold yang dibuat otomatis; token dapat dipakai ulang hanya pada sesi klaim yang sama |
+| `GET /api/v1/me/waitlist` | Member | Daftar tunggu aktif milik member |
+| `DELETE /api/v1/me/waitlist/{id}` | Member + CSRF | Keluar dari daftar tunggu dan lepaskan hold jika sedang ditawarkan |
+
+Member harus sudah memverifikasi email. Tamu memasukkan nama, telepon, dan
+email, lalu harus memverifikasi email sebelum masuk antrean. Saat kapasitas
+terbuka, sistem memilih pendaftar tertua yang jumlah pemainnya muat, membuat
+hold 10 menit, dan mengirim link booking melalui email outbox. Slot belum
+menjadi booking sampai alur booking selesai. Tanpa Resend, email tetap antre
+dan pengguna tidak dapat mengetahui tawaran sebelum pesan terkirim.
+
+#### Preferensi notifikasi
+
+| Method dan path | Auth | Fungsi |
+|---|---|---|
+| `GET /api/v1/me/notifications` | Member | Baca consent, pengingat, update lapangan, dan frekuensi |
+| `PATCH /api/v1/me/notifications` | Member + CSRF | Simpan consent dan preferensi email |
+| `POST /api/v1/jobs/notifications/process` | Bearer `NOTIFICATION_JOB_TOKEN` | Antrekan pengingat, digest harian, tawaran waitlist dari hold kedaluwarsa, dan proses outbox |
+
+Pengingat tee time dapat dipilih 24 atau 3 jam sebelumnya. Update lapangan
+dikirim langsung atau sebagai digest harian. Consent opsional harus aktif dan
+email member terverifikasi; mencabut consent menghapus notifikasi opsional
+yang belum terkirim. Konfirmasi/cancel booking tetap email transaksional.
+
+Job notifikasi harus dijadwalkan setiap 5–15 menit dengan token rahasia
+`NOTIFICATION_JOB_TOKEN`; pengiriman Resend memerlukan konfigurasi provider.
+Jangan jadwalkan endpoint ini sebelum token dan email provider diatur.
+
+Kebijakan no-show dan penalti belum ditetapkan klub, sehingga penandaan
+no-show, biaya, dan penalti **belum diterapkan**. Tee sheet hanya menampilkan
+status yang sudah ada; laporan harian merangkum confirmed, checked-in,
+completed, cancelled, kapasitas, booked, held, dan available.
+
 #### `GET /api/v1/bookings/{id}/qr`
 
 Pemilik. Menghasilkan QR token bertanda tangan berumur pendek; token memuat
@@ -704,6 +764,8 @@ boleh melalui proses verifikasi email dan tidak boleh menghasilkan earn ganda.
 | `POST /api/v1/staff/rounds/{id}/verify` | Staff | Verifikasi skor/sumber, hitung ulang handicap dan tier |
 | `POST /api/v1/staff/vouchers/{code}/redeem` | Staff | Gunakan voucher aktif, kaitkan ke booking dalam transaksi |
 | `GET /api/v1/staff/tee-sheet?date=YYYY-MM-DD` | Staff | Lihat kapasitas, booking, hold dan status slot |
+| `GET /api/v1/staff/tee-sheet?date=YYYY-MM-DD&q=...` | Staff | Cari reference, nama, atau telepon; respons memuat ringkasan operasional harian |
+| `POST /api/v1/staff/bookings/{id}/check-in` | Staff + CSRF | Check-in berdasarkan booking yang ditemukan; hanya pada tanggal tee time |
 | `PUT /api/v1/admin/tee-sheet/blocks` | Admin | Blokir slot; konflik booking aktif memerlukan pemindahan eksplisit |
 | `PUT /api/v1/admin/rate-cards` | Admin | Ubah tarif untuk booking baru; validasi overlap |
 | `PUT /api/v1/admin/service-items` | Admin | Kelola harga/layanan aktif untuk booking baru |
@@ -730,10 +792,13 @@ diperlukan.
 |---|---|---|
 | `generate-slots` | Harian 00:30 | Buat slot hingga 74 hari (60 hari publik + 14 hari tier Black); `UNIQUE` membuat job idempotent |
 | `sweep-holds` | 30 detik | Tandai hold expired dan lepaskan `held_spots` tepat sekali |
-| `mark-no-show` | 15 menit | `confirmed` lewat tee time lokal + 60 menit menjadi `no_show` |
 | `evaluate-tiers` | Harian dan saat ronde diverifikasi | Hitung ronde terverifikasi 365 hari dan perbarui tier |
 | `expire-vouchers` | Harian | Tandai voucher lewat `valid_until` sebagai expired |
-| `outbox-relay` | 5 detik | Kirim email/WhatsApp/analytics; retry dengan backoff, tandai published setelah sukses |
+| `notifications` | 5–15 menit | Antrekan reminder/digest, tawaran waitlist untuk hold kedaluwarsa, dan proses email outbox |
+
+No-show job ditunda sampai kebijakan klub disetujui. Job notifikasi tersedia
+melalui endpoint internal bertoken; pengelola hosting harus menjadwalkan
+pemanggilannya.
 
 Job harus aman dijalankan lebih dari sekali dan memakai transaksi/conditional
 update yang sama dengan request interaktif.

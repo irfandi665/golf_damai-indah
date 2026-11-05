@@ -361,6 +361,9 @@
   .mx-auto {
     margin-inline: auto;
   }
+  .mt-0 {
+    margin-top: 0px;
+  }
   .mt-0\.5 {
     margin-top: calc(var(--spacing) * 0.5);
   }
@@ -670,6 +673,9 @@
   .min-w-0 {
     min-width: 0px;
   }
+  .min-w-64 {
+    min-width: calc(var(--spacing) * 64);
+  }
   .min-w-\[2ch\] {
     min-width: 2ch;
   }
@@ -949,6 +955,9 @@
   }
   .border-\[\#F6F2EA\]\/20 {
     border-color: color-mix(in oklab, #F6F2EA 20%, transparent);
+  }
+  .border-\[\#F6F2EA\]\/25 {
+    border-color: color-mix(in oklab, #F6F2EA 25%, transparent);
   }
   .border-\[\#F6F2EA\]\/30 {
     border-color: color-mix(in oklab, #F6F2EA 30%, transparent);
@@ -1234,6 +1243,9 @@
   }
   .p-1 {
     padding: var(--spacing);
+  }
+  .p-3 {
+    padding: calc(var(--spacing) * 3);
   }
   .p-4 {
     padding: calc(var(--spacing) * 4);
@@ -1577,9 +1589,6 @@
   }
   .text-\[\#F6F2EA\]\/30 {
     color: color-mix(in oklab, #F6F2EA 30%, transparent);
-  }
-  .text-\[\#F6F2EA\]\/35 {
-    color: color-mix(in oklab, #F6F2EA 35%, transparent);
   }
   .text-\[\#F6F2EA\]\/40 {
     color: color-mix(in oklab, #F6F2EA 40%, transparent);
@@ -2288,6 +2297,9 @@
     }
     .xl\:grid-cols-5 {
       grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .xl\:grid-cols-7 {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
     }
     .xl\:gap-7 {
       gap: calc(var(--spacing) * 7);

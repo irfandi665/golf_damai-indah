@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { ApiError, assert, problemResponse } from '@/lib/server/errors';
 import { enforceRateLimit } from '@/lib/server/rate-limit';
 import {
@@ -9,6 +9,7 @@ import {
   listTeeTimes,
   quoteForHold,
   releaseHold,
+  rescheduleBooking,
 } from '@/lib/server/booking-service';
 import {
   getHandicap,
@@ -38,6 +39,7 @@ import {
 import {
   blockTeeSlots,
   checkInBooking,
+  checkInBookingById,
   completeBooking,
   getTeeSheet,
   makeBookingQr,
@@ -59,6 +61,20 @@ import {
   updateInquiryStatus,
 } from '@/lib/server/public-service';
 import { processEmailOutbox, queueEmail } from '@/lib/server/email-service';
+import {
+  getNotificationPreferences,
+  processScheduledNotifications,
+  queueCourseUpdateNotifications,
+  updateNotificationPreferences,
+} from '@/lib/server/notification-service';
+import {
+  cancelMemberWaitlist,
+  claimWaitlistOffer,
+  listMemberWaitlist,
+  offerWaitlistForSlot,
+  registerWaitlist,
+  verifyWaitlistEmail,
+} from '@/lib/server/waitlist-service';
 import {
   createSession,
   getSession,
@@ -189,7 +205,12 @@ async function dispatch(request, segments) {
 
   if (resource === 'tee-times' && subresource === 'holds' && identifier && method === 'DELETE') {
     const session = await getSession(request, { required: true, csrf: true });
-    return json(await releaseHold({ session, holdId: identifier }));
+    const result = await releaseHold({ session, holdId: identifier });
+    const notification = await offerWaitlistForSlot(Number(result.slotId));
+    return json({
+      released: result.released,
+      waitlistNotification: notification?.sent ? 'sent' : notification ? 'queued' : null,
+    });
   }
 
   if (resource === 'quotes' && !subresource && method === 'POST') {
@@ -255,7 +276,82 @@ async function dispatch(request, segments) {
       text: `Your tee time reservation has been cancelled.\n\nReference: ${booking.reference}\nDate: ${booking.date}\nTime: ${booking.time}\nCancellation category: ${result.body.kind}.\n\nAll payments are settled at the club. This website does not process payments.`,
     });
     const delivery = await processEmailOutbox({ limit: 1, dedupeKey: emailKey });
-    return json({ ...result.body, emailNotification: delivery.sent ? 'sent' : 'queued' }, result.status);
+    const waitlistNotification = await offerWaitlistForSlot(Number(result.body.slotId));
+    const { slotId, ...body } = result.body;
+    return json({
+      ...body,
+      emailNotification: delivery.sent ? 'sent' : 'queued',
+      waitlistNotification: waitlistNotification?.sent ? 'sent' : waitlistNotification ? 'queued' : null,
+    }, result.status);
+  }
+
+  if (resource === 'bookings' && subresource && identifier === 'reschedule' && method === 'POST') {
+    const session = await memberSession(request, true);
+    const result = await rescheduleBooking({
+      bookingId: subresource,
+      session,
+      newSlotId: (await requestBody(request)).newSlotId,
+      idempotencyKey: requireIdempotencyKey(request),
+    });
+    const booking = await getBooking({ id: subresource, session });
+    const emailKey = `booking-rescheduled:${subresource}:${requireIdempotencyKey(request)}`;
+    await queueEmail({
+      dedupeKey: emailKey,
+      to: booking.guest.email,
+      subject: `Reservation rescheduled — ${booking.reference}`,
+      text: `Your tee time reservation has been rescheduled.\n\nReference: ${booking.reference}\nNew date: ${booking.date}\nNew time: ${booking.time}\nUpdated total due at the club: Rp${new Intl.NumberFormat('id-ID').format(booking.total)}.\nPrice difference: ${result.body.difference >= 0 ? '+' : ''}Rp${new Intl.NumberFormat('id-ID').format(result.body.difference)}.\n\nPayment is settled at the club. This website does not process payments.`,
+    });
+    const delivery = await processEmailOutbox({ limit: 1, dedupeKey: emailKey });
+    const waitlistNotification = await offerWaitlistForSlot(Number(result.body.releasedSlotId));
+    const { releasedSlotId, ...body } = result.body;
+    return json({
+      ...body,
+      emailNotification: delivery.sent ? 'sent' : 'queued',
+      waitlistNotification: waitlistNotification?.sent ? 'sent' : waitlistNotification ? 'queued' : null,
+    }, result.status);
+  }
+
+  if (resource === 'waitlist' && !subresource && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await enforceRateLimit(request, 'waitlist', 5, 3600);
+    return json(await registerWaitlist({ session, body: await requestBody(request) }), 201);
+  }
+
+  if (resource === 'waitlist' && subresource === 'verify' && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await enforceRateLimit(request, 'waitlist-verify', 10, 3600);
+    return json(await verifyWaitlistEmail({ token: (await requestBody(request)).token, session }));
+  }
+
+  if (resource === 'waitlist' && subresource === 'claim' && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await enforceRateLimit(request, 'waitlist-claim', 10, 3600);
+    return json(await claimWaitlistOffer({ token: (await requestBody(request)).token, session }));
+  }
+
+  if (resource === 'me' && subresource === 'waitlist' && !identifier && method === 'GET') {
+    const session = await memberSession(request);
+    return json(await listMemberWaitlist(session.userId));
+  }
+
+  if (resource === 'me' && subresource === 'waitlist' && identifier && method === 'DELETE') {
+    const session = await memberSession(request, true);
+    const result = await cancelMemberWaitlist({ userId: session.userId, waitlistId: identifier });
+    const notification = await offerWaitlistForSlot(Number(result.slotId));
+    return json({
+      cancelled: true,
+      waitlistNotification: notification?.sent ? 'sent' : notification ? 'queued' : null,
+    });
+  }
+
+  if (resource === 'me' && subresource === 'notifications' && !identifier && method === 'GET') {
+    const session = await memberSession(request);
+    return json(await getNotificationPreferences(session.userId));
+  }
+
+  if (resource === 'me' && subresource === 'notifications' && !identifier && method === 'PATCH') {
+    const session = await memberSession(request, true);
+    return json(await updateNotificationPreferences({ userId: session.userId, body: await requestBody(request) }));
   }
 
   if (resource === 'staff' && subresource === 'check-in' && method === 'POST') {
@@ -263,6 +359,12 @@ async function dispatch(request, segments) {
     await requireRole(session, ['staff', 'admin']);
     const body = await requestBody(request);
     return json(await checkInBooking({ staffId: session.userId, qrToken: body.qrToken }));
+  }
+
+  if (resource === 'staff' && subresource === 'bookings' && identifier && action === 'check-in' && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['staff', 'admin']);
+    return json(await checkInBookingById({ staffId: session.userId, bookingId: identifier }));
   }
 
   if (resource === 'staff' && subresource === 'session' && method === 'GET') {
@@ -283,6 +385,7 @@ async function dispatch(request, segments) {
     return json(await getTeeSheet({
       date: url.searchParams.get('date'),
       courseId: Number(url.searchParams.get('courseId') || 1),
+      search: url.searchParams.get('q') || '',
     }));
   }
 
@@ -334,7 +437,9 @@ async function dispatch(request, segments) {
   if (resource === 'admin' && subresource === 'course-updates' && !identifier && method === 'POST') {
     const session = await getSession(request, { required: true, csrf: true });
     await requireRole(session, ['admin']);
-    return json(await createCourseUpdate({ adminId: session.userId, body: await requestBody(request) }), 201);
+    const update = await createCourseUpdate({ adminId: session.userId, body: await requestBody(request) });
+    const notifications = await queueCourseUpdateNotifications(update);
+    return json({ ...update, emailNotificationsQueued: notifications.queued }, 201);
   }
 
   if (resource === 'admin' && subresource === 'course-updates' && identifier && method === 'DELETE') {
@@ -353,6 +458,15 @@ async function dispatch(request, segments) {
     const session = await getSession(request, { required: true, csrf: true });
     await requireRole(session, ['admin']);
     return json(await processEmailOutbox({ limit: 20 }));
+  }
+
+  if (resource === 'jobs' && subresource === 'notifications' && identifier === 'process' && method === 'POST') {
+    const expected = process.env.NOTIFICATION_JOB_TOKEN;
+    const authorization = request.headers.get('authorization') || '';
+    const received = Buffer.from(authorization.startsWith('Bearer ') ? authorization.slice(7) : '');
+    const expectedBuffer = Buffer.from(expected || '');
+    assert(expected && received.length === expectedBuffer.length && timingSafeEqual(received, expectedBuffer), 401, 'unauthenticated', 'A valid notification job token is required.');
+    return json(await processScheduledNotifications());
   }
 
   if (resource === 'pricing' && !subresource && method === 'GET') {

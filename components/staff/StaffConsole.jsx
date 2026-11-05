@@ -17,6 +17,8 @@ export default function StaffConsole() {
     const now = new Date();
     return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   });
+  const [search, setSearch] = useState('');
+  const [searchText, setSearchText] = useState('');
   const [sheet, setSheet] = useState(null);
   const [serviceItems, setServiceItems] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -31,7 +33,7 @@ export default function StaffConsole() {
 
   useEffect(() => {
     if (!role) return;
-    const query = new URLSearchParams({ date });
+    const query = new URLSearchParams({ date, q: search });
     apiRequest(`/api/v1/staff/tee-sheet?${query}`)
       .then(setSheet)
       .catch((reason) => setError(reason.message));
@@ -42,9 +44,10 @@ export default function StaffConsole() {
       .then((response) => response.json())
       .then((pricing) => setServiceItems(pricing.services || []))
       .catch((reason) => setError(reason.message));
-  }, [role, date, reload]);
+  }, [role, date, search, reload]);
 
   const selectedSlots = useMemo(() => new Set(selected), [selected]);
+  const todayJakarta = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
 
   async function run(action, successMessage) {
     setError('');
@@ -162,9 +165,27 @@ export default function StaffConsole() {
 
       <section className="mt-8 rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] p-5 sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div><h2 className="font-[family-name:var(--font-heading)] text-3xl">Daily tee sheet</h2><p className="mt-1 text-xs text-[#F6F2EA]/50">Select empty slots to block or reopen them. Occupied slots cannot be blocked.</p></div>
+          <div><h2 className="font-[family-name:var(--font-heading)] text-3xl">Daily tee sheet</h2><p className="mt-1 text-xs text-[#F6F2EA]/50">Search by booking reference, guest name or phone. No-show penalties are not configured.</p></div>
           {role === 'admin' && <div className="flex gap-2"><button type="button" disabled={!selected.length} onClick={() => toggleBlocks(true)} className={buttonClass}>Block selected</button><button type="button" disabled={!selected.length} onClick={() => toggleBlocks(false)} className={buttonClass}>Reopen</button></div>}
         </div>
+        <form onSubmit={(event) => { event.preventDefault(); setSearch(searchText.trim()); }} className="mt-5 flex flex-wrap gap-3">
+          <input value={searchText} onChange={(event) => setSearchText(event.target.value)} maxLength={120} placeholder="Reference, guest name or phone" aria-label="Search tee sheet bookings" className={`${fieldClass} mt-0 min-w-64 flex-1`} />
+          <button type="submit" className={buttonClass}>Search</button>
+          {search && <button type="button" onClick={() => { setSearch(''); setSearchText(''); }} className={buttonClass}>Clear search</button>}
+        </form>
+        {sheet?.summary && (
+          <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+            {[
+              ['Confirmed', sheet.summary.confirmed],
+              ['Checked in', sheet.summary.checkedIn],
+              ['Completed', sheet.summary.completed],
+              ['Cancelled', sheet.summary.cancelled],
+              ['Capacity', sheet.summary.capacity],
+              ['Booked', sheet.summary.booked],
+              ['Open / held', `${sheet.summary.available} / ${sheet.summary.held}`],
+            ].map(([label, value]) => <div key={label} className="rounded-xl border border-[#C9A96E]/15 bg-[#0F2A20]/40 p-3"><dt className="text-[0.6rem] uppercase tracking-[0.12em] text-[#F6F2EA]/45">{label}</dt><dd className="mt-1 text-lg tabular-nums text-[#C9A96E]">{value}</dd></div>)}
+          </dl>
+        )}
         {!sheet ? <p role="status" className="mt-6 text-sm text-[#F6F2EA]/50">Loading tee sheet…</p> : (
           <ul className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {sheet.slots.map((slot) => (
@@ -175,7 +196,7 @@ export default function StaffConsole() {
                   <span className="text-[0.6rem] uppercase tracking-[0.15em] text-[#C9A96E]">{slot.status}</span>
                 </div>
                 {slot.reason && <p className="mt-2 text-xs text-red-100">{slot.reason}</p>}
-                {slot.bookings.length > 0 && <ul className="mt-4 space-y-2 border-t border-[#C9A96E]/10 pt-3">{slot.bookings.map((booking) => <li key={booking.id} className="text-xs text-[#F6F2EA]/75"><span className="font-medium">{booking.reference}</span> · {booking.guestName} · {booking.players} player(s) · {booking.status}<span className="block break-all text-[#F6F2EA]/35">{booking.id}</span></li>)}</ul>}
+                {slot.bookings.length > 0 && <ul className="mt-4 space-y-3 border-t border-[#C9A96E]/10 pt-3">{slot.bookings.map((booking) => <li key={booking.id} className="text-xs text-[#F6F2EA]/75"><span className="font-medium">{booking.reference}</span> · {booking.guestName} · {booking.players} player(s) · {booking.status}<span className="block text-[#F6F2EA]/45">{booking.guestPhone}</span><span className="block break-all text-[0.6rem] text-[#F6F2EA]/30">{booking.id}</span>{booking.status === 'confirmed' && date === todayJakarta && <button type="button" onClick={() => run(() => apiRequest(`/api/v1/staff/bookings/${encodeURIComponent(booking.id)}/check-in`, { method: 'POST', body: {} }), `${booking.reference} checked in.`)} className="mt-2 text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-[#C9A96E] underline underline-offset-4">Check in booking</button>}</li>)}</ul>}
               </li>
             ))}
           </ul>

@@ -33,8 +33,10 @@ sebaiknya menggunakan Redis terkelola dengan autentikasi dan TLS.
    Redis yang siap akan membalas `PONG`.
 3. Salin `.env.example` ke `.env.local`, lalu atur `DATABASE_URL`,
    `REDIS_URL`, `APP_ORIGIN`, `HOLD_IP_HASH_SECRET`, dan
-   `QR_SIGNING_SECRET` (diperlukan untuk alur QR/check-in). Untuk email,
-   atur `RESEND_API_KEY`, `EMAIL_FROM`, serta `CLUB_CONTACT_EMAIL`. Gunakan
+   `QR_SIGNING_SECRET` (diperlukan untuk alur QR/check-in). Untuk notifikasi
+   terjadwal, atur `NOTIFICATION_JOB_TOKEN` dengan secret acak yang panjang.
+   Untuk email, atur `RESEND_API_KEY`, `EMAIL_FROM`, serta
+   `CLUB_CONTACT_EMAIL`. Gunakan
    domain pengirim yang telah diverifikasi Resend untuk production; alamat
    `onboarding@resend.dev` hanya untuk pengujian sesuai batas akun Resend.
    Jangan commit `.env.local` atau menyimpan secret di source control.
@@ -82,7 +84,8 @@ sebaiknya menggunakan Redis terkelola dengan autentikasi dan TLS.
 ## Menjalankan tes integrasi API
 
 Tes integrasi membuat member dan booking sementara melalui API lokal, menguji
-retry idempotency serta rate limit Redis, lalu menghapus data tes yang dibuat.
+retry idempotency, reschedule, waitlist/claim, preferensi notifikasi,
+tee-sheet search, serta rate limit Redis, lalu menghapus data tes yang dibuat.
 Gunakan database `golf` lokal atau database lokal dengan akhiran `_test`, dan
 pastikan database tersebut bukan production. Tanggal tee time tes dipilih jauh
 di masa depan; slot yang dibuat khusus oleh tes dibersihkan setelahnya.
@@ -110,13 +113,29 @@ Untuk menjaga riwayat finansial pada database yang sudah memakai migrasi lama,
 tabel pembayaran lama tidak dihapus otomatis; aplikasi yang diperbarui tidak
 lagi membaca atau menulis tabel tersebut.
 
-## Batas yang belum siap untuk production
+## Pekerjaan terjadwal dan batas production
 
-- Implementasikan worker untuk sweep hold expiry, outbox notification,
-  tier/voucher expiry, dan no-show.
+- Endpoint `POST /api/v1/jobs/notifications/process` memerlukan
+  `Authorization: Bearer <NOTIFICATION_JOB_TOKEN>`. Jadwalkan pemanggilan
+  setiap 5–15 menit melalui cron/platform scheduler; contoh PowerShell:
+
+  ```powershell
+  Invoke-RestMethod -Method Post `
+    -Uri "https://HOST/api/v1/jobs/notifications/process" `
+    -Headers @{ Authorization = "Bearer $env:NOTIFICATION_JOB_TOKEN" }
+  ```
+
+- Job itu memproses pengingat/digest yang opt-in, email outbox, dan tawaran
+  waitlist untuk hold yang kedaluwarsa. Worker tambahan masih diperlukan untuk
+  tier/voucher expiry dan tugas operasional lain.
+- Kebijakan no-show/penalti belum disetujui klub. Aplikasi belum menandai
+  booking sebagai no-show atau menerapkan denda; jangan aktifkan penalti
+  sebelum kebijakan resmi ditetapkan.
 - Email booking, pembatalan, verifikasi, reset password, dan inquiry memakai
   Resend melalui outbox. Tanpa `RESEND_API_KEY`, pesan tetap antre dan perlu
-  dikirim ulang dari panel admin setelah provider dikonfigurasi.
+  dikirim ulang dari panel admin setelah provider dikonfigurasi. Tamu waitlist
+  juga tidak dapat menerima tautan verifikasi atau klaim sampai pengiriman
+  email berfungsi.
 - Verifikasi nomor telepon belum aktif karena provider SMS/OTP belum
   dikonfigurasi. Halaman publik juga menandai alamat, jam buka, kalender acara,
   instruktur, dan detail fasilitas yang belum diverifikasi; inquiry acara dan

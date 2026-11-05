@@ -15,6 +15,7 @@ import {
   releaseTeeTimeHold,
   validateGuest,
 } from '@/lib/booking/engine';
+import { apiRequest } from '@/lib/api-client';
 import { STEPS, bookingReducer, canProceed, initialState } from '@/lib/booking/reducer';
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -84,6 +85,23 @@ function BookingFlow({ now }) {
   const [state, dispatch] = useReducer(bookingReducer, initialState);
   const panelRef = useRef(null);
   const lastFocusKey = useRef(state.stepIndex);
+  const waitlistClaimStarted = useRef(false);
+
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('waitlistToken');
+    if (!token || waitlistClaimStarted.current) return;
+    waitlistClaimStarted.current = true;
+    apiRequest('/api/v1/waitlist/claim', {
+      method: 'POST',
+      body: { token },
+    }).then((claim) => {
+      window.history.replaceState(null, '', '/booking');
+      dispatch({ type: 'WAITLIST_CLAIMED', ...claim });
+    }).catch((error) => {
+      window.history.replaceState(null, '', '/booking');
+      dispatch({ type: 'SET_NOTICE', notice: error.message || 'This waitlist offer has expired. Please choose another tee time.' });
+    });
+  }, []);
 
   const localQuote = useMemo(
     () =>

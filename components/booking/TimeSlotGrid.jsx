@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { fetchTeeTimes } from '@/lib/booking/engine';
+import WaitlistJoinForm from './WaitlistJoinForm';
 import {
   DAY_PARTS,
   TIER_LABELS,
@@ -26,6 +27,7 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
   const [fetchState, setFetchState] = useState({ status: 'loading', slots: [] });
   const [selecting, setSelecting] = useState(false);
   const [selectionError, setSelectionError] = useState(null);
+  const [waitlistSlot, setWaitlistSlot] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -119,6 +121,7 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
                 const fits = slot.status !== 'full' && slot.spotsLeft >= players;
                 const disabled = closed || !fits;
                 const selected = selectedTime === slot.time;
+                const waitlistEligible = !closed && (slot.status === 'full' || slot.spotsLeft < players);
 
                 let caption = formatCompactCurrency(slot.pricePerPlayer);
                 if (closed) caption = 'Closed';
@@ -142,30 +145,48 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
                 }
 
                 return (
-                  <button
-                    key={slot.time}
-                    type="button"
-                    disabled={disabled || selecting}
-                    aria-pressed={selected}
-                    aria-label={`${slot.time}, ${caption}${hint ? `, ${hint}` : ''}`}
-                    onClick={() => selectSlot(slot)}
-                    className={`flex min-h-[5.5rem] flex-col items-center justify-center rounded-xl border px-2 py-3 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F2A20] ${stateClass}`}
-                  >
-                    <span className="font-[family-name:var(--font-heading)] text-2xl font-semibold tabular-nums leading-none">
-                      {slot.time}
-                    </span>
-                    <span className="mt-1.5 text-xs tabular-nums opacity-80">{caption}</span>
-                    <span
-                      className={`mt-1 min-h-[0.9rem] text-[0.6rem] font-semibold uppercase tracking-[0.15em] ${
-                        selected ? 'text-[#0F2A20]/70' : slot.spotsLeft <= 2 ? 'text-amber-300' : 'text-[#C9A96E]'
-                      }`}
+                  <div key={slot.time} className="min-w-0">
+                    <button
+                      type="button"
+                      disabled={disabled || selecting}
+                      aria-pressed={selected}
+                      aria-label={`${slot.time}, ${caption}${hint ? `, ${hint}` : ''}`}
+                      onClick={() => selectSlot(slot)}
+                      className={`flex min-h-[5.5rem] w-full flex-col items-center justify-center rounded-xl border px-2 py-3 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F2A20] ${stateClass}`}
                     >
-                      {hint}
-                    </span>
-                  </button>
+                      <span className="font-[family-name:var(--font-heading)] text-2xl font-semibold tabular-nums leading-none">
+                        {slot.time}
+                      </span>
+                      <span className="mt-1.5 text-xs tabular-nums opacity-80">{caption}</span>
+                      <span
+                        className={`mt-1 min-h-[0.9rem] text-[0.6rem] font-semibold uppercase tracking-[0.15em] ${
+                          selected ? 'text-[#0F2A20]/70' : slot.spotsLeft <= 2 ? 'text-amber-300' : 'text-[#C9A96E]'
+                        }`}
+                      >
+                        {hint}
+                      </span>
+                    </button>
+                    {waitlistEligible && (
+                      <button
+                        type="button"
+                        onClick={() => setWaitlistSlot(slot)}
+                        className="mt-2 w-full text-center text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-[#C9A96E] underline underline-offset-4 hover:text-[#F6F2EA]"
+                      >
+                        Join waitlist
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
+            {waitlistSlot && group.slots.some((slot) => slot.slotId === waitlistSlot.slotId) && (
+              <WaitlistJoinForm
+                slot={waitlistSlot}
+                dateKey={dateKey}
+                players={players}
+                onClose={() => setWaitlistSlot(null)}
+              />
+            )}
           </div>
         ))}
       </div>

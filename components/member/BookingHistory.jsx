@@ -1,11 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CADDY_OPTIONS, formatCurrency, pluralize } from '@/lib/booking/utils';
 import Panel from './Panel';
 import BookingQr from './BookingQr';
+import { apiRequest } from '@/lib/api-client';
+import { fetchTeeTimes } from '@/lib/booking/engine';
+import { newIdempotencyKey } from '@/lib/api-client';
 import {
   buildCalendarUrl,
   formatDateTime,
@@ -28,7 +31,69 @@ const TABS = [
   { id: 'past', label: 'History' },
 ];
 
-function BookingCard({ booking, now, confirming, onAskCancel, onKeep, onConfirmCancel }) {
+function RescheduleControl({ booking, now, onRescheduled }) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState('');
+  const [slotId, setSlotId] = useState('');
+  const [slots, setSlots] = useState([]);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const eligible = isFreeCancellation(booking, now);
+
+  useEffect(() => {
+    if (!date) {
+      setSlots([]);
+      setSlotId('');
+      return undefined;
+    }
+    const controller = new AbortController();
+    fetchTeeTimes(date, { signal: controller.signal, players: booking.players })
+      .then((result) => setSlots(result.filter((slot) => slot.slotId && slot.spotsLeft >= booking.players && !['blocked', 'closed', 'full'].includes(slot.status))))
+      .catch((reason) => {
+        if (reason.name !== 'AbortError') setError(reason.message);
+      });
+    return () => controller.abort();
+  }, [date, booking.players]);
+
+  async function submit(event) {
+    event.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      await apiRequest(`/api/v1/bookings/${encodeURIComponent(booking.id)}/reschedule`, {
+        method: 'POST',
+        idempotencyKey: newIdempotencyKey(),
+        body: { newSlotId: Number(slotId) },
+      });
+      setOpen(false);
+      onRescheduled();
+    } catch (reason) {
+      setError(reason.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!eligible) return null;
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen((value) => !value)} className="rounded-full border border-[#C9A96E]/50 px-5 py-2.5 text-xs font-medium uppercase tracking-[0.2em] text-[#C9A96E] hover:bg-[#C9A96E]/10">
+        {open ? 'Close reschedule' : 'Change tee time'}
+      </button>
+      {open && (
+        <form onSubmit={submit} className="mt-4 grid gap-3 rounded-xl border border-[#C9A96E]/20 bg-[#0F2A20]/60 p-4 sm:grid-cols-3">
+          <label className="text-xs text-[#F6F2EA]/60">New date<input type="date" required value={date} onChange={(event) => { setDate(event.target.value); setSlotId(''); }} className="mt-2 w-full rounded-lg border border-[#C9A96E]/25 bg-[#0F2A20] px-3 py-2.5 text-sm text-[#F6F2EA]" /></label>
+          <label className="text-xs text-[#F6F2EA]/60">Available tee time<select required value={slotId} onChange={(event) => setSlotId(event.target.value)} className="mt-2 w-full rounded-lg border border-[#C9A96E]/25 bg-[#0F2A20] px-3 py-2.5 text-sm text-[#F6F2EA]"><option value="">Select a time</option>{slots.filter((slot) => !(date === booking.dateKey && slot.time === booking.time)).map((slot) => <option key={slot.slotId} value={slot.slotId}>{slot.time} · {slot.spotsLeft} available</option>)}</select></label>
+          <div className="flex items-end"><button type="submit" disabled={!slotId || submitting} className="w-full rounded-full bg-[#C9A96E] px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-[#0F2A20] disabled:opacity-50">{submitting ? 'Updating…' : 'Confirm change'}</button></div>
+          <p className="text-xs leading-relaxed text-[#F6F2EA]/50 sm:col-span-3">Available until 24 hours before the original tee time. Player count and selected services remain unchanged. Green fee is recalculated; any difference is settled at the club.</p>
+          {error && <p role="alert" className="text-xs text-red-200 sm:col-span-3">{error}</p>}
+        </form>
+      )}
+    </div>
+  );
+}
+
+function BookingCard({ booking, now, confirming, onAskCancel, onKeep, onConfirmCancel, onRescheduled }) {
   const caddy = CADDY_OPTIONS.find((option) => option.id === booking.caddy);
   const { day, month, weekday } = getDateParts(booking.dateKey);
   const upcoming = booking.status === 'confirmed';
@@ -127,6 +192,7 @@ function BookingCard({ booking, now, confirming, onAskCancel, onKeep, onConfirmC
                   Add to Calendar
                 </a>
                 <BookingQr bookingId={booking.id} />
+                <RescheduleControl booking={booking} now={now} onRescheduled={onRescheduled} />
                 <button
                   type="button"
                   onClick={onAskCancel}
@@ -154,9 +220,30 @@ function BookingCard({ booking, now, confirming, onAskCancel, onKeep, onConfirmC
   );
 }
 
-export default function BookingHistory({ bookings, now, dispatch, todayKey, voucherValidUntil }) {
+export default function BookingHistory({ bookings, now, dispatch, todayKey, voucherValidUntil, onRefresh }) {
   const [tab, setTab] = useState('upcoming');
   const [confirmingId, setConfirmingId] = useState(null);
+  const [waitlist, setWaitlist] = useState([]);
+  const [waitlistError, setWaitlistError] = useState('');
+  const [waitlistNotice, setWaitlistNotice] = useState('');
+
+  useEffect(() => {
+    apiRequest('/api/v1/me/waitlist')
+      .then(setWaitlist)
+      .catch((reason) => setWaitlistError(reason.message));
+  }, []);
+
+  async function leaveWaitlist(id) {
+    setWaitlistError('');
+    setWaitlistNotice('');
+    try {
+      await apiRequest(`/api/v1/me/waitlist/${encodeURIComponent(id)}`, { method: 'DELETE', body: {} });
+      setWaitlist((current) => current.filter((entry) => entry.id !== id));
+      setWaitlistNotice('Waitlist entry cancelled.');
+    } catch (reason) {
+      setWaitlistError(reason.message);
+    }
+  }
 
   const { upcoming, past } = useMemo(() => {
     const byDateTime = (a, b) => `${a.dateKey}${a.time}`.localeCompare(`${b.dateKey}${b.time}`);
@@ -178,6 +265,31 @@ export default function BookingHistory({ bookings, now, dispatch, todayKey, vouc
   };
 
   return (
+    <>
+    <Panel
+      id="waitlist"
+      eyebrow="Availability"
+      title="Tee-time waitlist"
+      description="Open places are held for 10 minutes while you complete the reservation."
+    >
+      {waitlistError && <p role="alert" className="mb-4 text-sm text-red-200">{waitlistError}</p>}
+      {waitlistNotice && <p role="status" className="mb-4 text-sm text-emerald-100">{waitlistNotice}</p>}
+      {waitlist.length === 0 ? (
+        <p className="text-sm text-[#F6F2EA]/55">You have no active waitlist entries.</p>
+      ) : (
+        <ul className="space-y-3">
+          {waitlist.map((entry) => (
+            <li key={entry.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#C9A96E]/15 bg-[#0F2A20]/40 p-4">
+              <div>
+                <p className="text-sm text-[#F6F2EA]">{entry.date} · {entry.time} · {pluralize(entry.players, 'player')}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.15em] text-[#C9A96E]">{entry.status === 'held' ? 'Offer held — check your email' : 'Waiting for an opening'}</p>
+              </div>
+              <button type="button" onClick={() => leaveWaitlist(entry.id)} className="text-xs text-[#F6F2EA]/55 underline underline-offset-4 hover:text-[#F6F2EA]">Leave waitlist</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
     <Panel
       id="bookings"
       eyebrow="Reservations"
@@ -251,11 +363,13 @@ export default function BookingHistory({ bookings, now, dispatch, todayKey, vouc
                     validUntil: voucherValidUntil,
                   });
                 }}
+                onRescheduled={onRefresh}
               />
             ))}
           </ul>
         )}
       </div>
     </Panel>
+    </>
   );
 }

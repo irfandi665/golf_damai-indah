@@ -2,7 +2,5 @@
   "/_not-found/page": "app/_not-found/page.js",
   "/api/v1/[...path]/route": "app/api/v1/[...path]/route.js",
   "/page": "app/page.js",
-  "/course/page": "app/course/page.js",
-  "/pricing/page": "app/pricing/page.js",
-  "/booking/page": "app/booking/page.js"
+  "/staff/page": "app/staff/page.js"
 }

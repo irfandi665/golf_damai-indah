@@ -28,6 +28,7 @@ const cookieJar = new Map();
 const sessionTokens = new Set();
 const createdSlotIds = new Set();
 const createdInquiryIds = new Set();
+const testDates = new Set();
 const testAddress = `192.0.2.${Math.floor(Math.random() * 254) + 1}`;
 const holdAddresses = [
   `192.0.2.${Math.floor(Math.random() * 254) + 1}`,
@@ -92,9 +93,20 @@ function requestHeaders(extra = {}) {
 }
 
 async function apiRequest(path, options = {}) {
+  const headers = requestHeaders(options.headers);
+  const method = options.method?.toUpperCase() || 'GET';
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !headers['x-csrf-token'] && cookieJar.has('golf_csrf')) {
+    headers['x-csrf-token'] = decodeURIComponent(cookieJar.get('golf_csrf'));
+  }
+  let body = options.body;
+  if (body && typeof body === 'object' && (Array.isArray(body) || Object.getPrototypeOf(body) === Object.prototype)) {
+    headers['content-type'] ??= 'application/json';
+    body = JSON.stringify(body);
+  }
   const response = await fetch(new URL(path, apiOrigin), {
     ...options,
-    headers: requestHeaders(options.headers),
+    body,
+    headers,
   });
   rememberCookies(response);
   return response;
@@ -129,6 +141,22 @@ async function cleanup() {
       ? await client.query('SELECT id FROM sessions WHERE token_hash = ANY($1::text[])', [tokenHashes])
       : { rows: [] };
     const sessionIds = sessions.rows.map((row) => row.id);
+    const waitlistRows = userId || sessionIds.length
+      ? await client.query(
+        `SELECT id FROM tee_time_waitlist
+         WHERE ($1::uuid IS NOT NULL AND user_id=$1)
+            OR (cardinality($2::uuid[])>0 AND session_id=ANY($2::uuid[]))`,
+        [userId || null, sessionIds],
+      )
+      : { rows: [] };
+    const waitlistIds = waitlistRows.rows.map((row) => row.id);
+    if (waitlistIds.length) {
+      await client.query(
+        `DELETE FROM email_outbox WHERE dedupe_key LIKE ANY($1::text[])`,
+        [waitlistIds.flatMap((id) => [`waitlist-verify:${id}`, `waitlist-offer:${id}:%`])],
+      );
+      await client.query('DELETE FROM tee_time_waitlist WHERE id=ANY($1::uuid[])', [waitlistIds]);
+    }
     const bookingIds = userId || sessionIds.length
       ? await client.query(
         `SELECT id FROM bookings
@@ -143,7 +171,10 @@ async function cleanup() {
       await client.query(
         `DELETE FROM email_outbox
          WHERE dedupe_key=ANY($1::text[]) OR dedupe_key LIKE ANY($2::text[])`,
-        [ids.map((id) => `booking-confirmed:${id}`), ids.flatMap((id) => [`booking-cancelled:${id}:%`])],
+        [
+          ids.map((id) => `booking-confirmed:${id}`),
+          ids.flatMap((id) => [`booking-cancelled:${id}:%`, `booking-rescheduled:${id}:%`]),
+        ],
       );
       await client.query('DELETE FROM booking_access_tokens WHERE booking_id = ANY($1::uuid[])', [ids]);
       await client.query('DELETE FROM booking_items WHERE booking_id = ANY($1::uuid[])', [ids]);
@@ -153,6 +184,21 @@ async function cleanup() {
       await client.query('DELETE FROM slot_holds WHERE session_id = ANY($1::uuid[])', [sessionIds]);
       await client.query('DELETE FROM sessions WHERE id = ANY($1::uuid[])', [sessionIds]);
     }
+    if (testDates.size) {
+      await client.query(
+        `UPDATE tee_slots ts
+         SET held_spots=COALESCE((
+               SELECT sum(h.players)::int FROM slot_holds h
+               WHERE h.slot_id=ts.id AND h.status='active' AND h.expires_at>now()
+             ),0),
+             booked_spots=COALESCE((
+               SELECT sum(b.players)::int FROM bookings b
+               WHERE b.slot_id=ts.id AND b.status IN ('confirmed','checked_in')
+             ),0)
+         WHERE ts.tee_date=ANY($1::date[])`,
+        [[...testDates]],
+      );
+    }
     if (userId) {
       await client.query(
         'DELETE FROM email_outbox WHERE dedupe_key LIKE ANY($1::text[])',
@@ -161,6 +207,7 @@ async function cleanup() {
       await client.query('DELETE FROM idempotency_keys WHERE scope LIKE $1', [`${userId}:%`]);
       await client.query('DELETE FROM member_balances WHERE user_id = $1', [userId]);
       await client.query('DELETE FROM members WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM audit_log WHERE actor_user_id = $1', [userId]);
       await client.query('DELETE FROM users WHERE id = $1', [userId]);
     }
     if (createdInquiryIds.size) {
@@ -281,14 +328,53 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       assert.equal(profile.phoneVerified, false);
     });
 
+    await t.test('saves consent-based notification preferences', async () => {
+      await pool.query('UPDATE users SET email_verified_at=now() WHERE id=$1', [userId]);
+      const initialResponse = await apiRequest('/api/v1/me/notifications');
+      await expectStatus(initialResponse, 200);
+      assert.equal((await responseJson(initialResponse)).emailConsent, false);
+      const refused = await apiRequest('/api/v1/me/notifications', {
+        method: 'PATCH',
+        body: { emailConsent: false, teeTimeReminders: true, courseUpdates: false, digestFrequency: 'daily', reminderHours: 24 },
+      });
+      assert.equal(refused.status, 400);
+      const saved = await apiRequest('/api/v1/me/notifications', {
+        method: 'PATCH',
+        body: { emailConsent: true, teeTimeReminders: true, courseUpdates: true, digestFrequency: 'daily', reminderHours: 3 },
+      });
+      await expectStatus(saved, 200);
+      assert.deepEqual(await responseJson(saved), {
+        emailConsent: true,
+        teeTimeReminders: true,
+        courseUpdates: true,
+        digestFrequency: 'daily',
+        reminderHours: 3,
+      });
+    });
+
     let testDate;
     let selectedSlot;
     let concurrencySlot;
+    let rescheduleSlot;
     await t.test('lists tee times for a future test date', async () => {
       const dateResult = await pool.query(
         `SELECT to_char(timezone('Asia/Jakarta', now())::date + 59, 'YYYY-MM-DD') AS date`,
       );
       testDate = dateResult.rows[0].date;
+      testDates.add(testDate);
+      await pool.query(
+        `UPDATE tee_slots ts
+         SET held_spots=COALESCE((
+               SELECT sum(h.players)::int FROM slot_holds h
+               WHERE h.slot_id=ts.id AND h.status='active' AND h.expires_at>now()
+             ),0),
+             booked_spots=COALESCE((
+               SELECT sum(b.players)::int FROM bookings b
+               WHERE b.slot_id=ts.id AND b.status IN ('confirmed','checked_in')
+             ),0)
+         WHERE ts.tee_date=$1::date`,
+        [testDate],
+      );
       const existing = await pool.query('SELECT id FROM tee_slots WHERE course_id=1 AND tee_date=$1::date', [testDate]);
       const existingIds = new Set(existing.rows.map((row) => String(row.id)));
       const response = await apiRequest(`/api/v1/tee-times?date=${testDate}&players=1`);
@@ -300,8 +386,15 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       }
       const available = body.slots.find((slot) => ['available', 'limited'].includes(slot.status) && slot.spotsLeft > 0);
       assert.ok(available, 'Expected an available tee time.');
-      concurrencySlot = body.slots.find((slot) => slot.slotId !== available.slotId && slot.spotsLeft >= 3);
+      const additionalSlots = body.slots.filter(
+        (slot) => slot.slotId !== available.slotId && ['available', 'limited'].includes(slot.status),
+      );
+      concurrencySlot = additionalSlots.find((slot) => slot.spotsLeft >= 3);
       assert.ok(concurrencySlot, 'Expected a separate tee time with at least three places available.');
+      rescheduleSlot = additionalSlots.find(
+        (slot) => slot.slotId !== concurrencySlot.slotId && slot.spotsLeft >= 1,
+      );
+      assert.ok(rescheduleSlot, 'Expected another available tee time for rescheduling.');
       t.diagnostic(`Selected tee time ${testDate} ${available.time}`);
       selectedSlot = available;
     });
@@ -368,6 +461,161 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       const replayResponse = await apiRequest('/api/v1/bookings', options);
       assert.equal(replayResponse.status, 201);
       assert.deepEqual(await responseJson(replayResponse), booking);
+    });
+
+    await t.test('reschedules the member booking atomically and idempotently', async () => {
+      const key = randomUUID();
+      const request = () => apiRequest(`/api/v1/bookings/${bookingId}/reschedule`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': key,
+        },
+        body: JSON.stringify({ newSlotId: Number(rescheduleSlot.slotId) }),
+      });
+      const response = await request();
+      await expectStatus(response, 200);
+      const result = await responseJson(response);
+      assert.equal(result.booking.id, bookingId);
+      assert.equal(result.current.date, testDate);
+      assert.notEqual(result.current.time, result.previous.time);
+      assert.equal(result.paymentMode, 'pay_at_club');
+      const replay = await request();
+      await expectStatus(replay, 200);
+      assert.deepEqual(await responseJson(replay), result);
+    });
+
+    let waitlistEntry;
+    await t.test('waitlists a verified member and transfers an auto-hold through a one-time email link', async () => {
+      const fullHoldResponse = await apiRequest('/api/v1/tee-times/holds', {
+        method: 'POST',
+        body: { slotId: concurrencySlot.slotId, players: Math.min(4, concurrencySlot.spotsLeft) },
+      });
+      await expectStatus(fullHoldResponse, 201);
+      const fullHold = await responseJson(fullHoldResponse);
+
+      const joined = await apiRequest('/api/v1/waitlist', {
+        method: 'POST',
+        body: { slotId: Number(concurrencySlot.slotId), players: 1 },
+      });
+      await expectStatus(joined, 201);
+      waitlistEntry = await responseJson(joined);
+      assert.equal(waitlistEntry.status, 'waiting');
+
+      const release = await apiRequest(`/api/v1/tee-times/holds/${fullHold.holdId}`, { method: 'DELETE' });
+      await expectStatus(release, 200);
+      assert.equal((await responseJson(release)).waitlistNotification, 'queued');
+
+      const email = await pool.query(
+        `SELECT body_text FROM email_outbox
+         WHERE dedupe_key LIKE $1 ORDER BY created_at DESC LIMIT 1`,
+        [`waitlist-offer:${waitlistEntry.id}:%`],
+      );
+      assert.equal(email.rowCount, 1, 'Expected a queued waitlist offer email.');
+      const link = email.rows[0].body_text.match(/https?:\/\/\S+/)?.[0];
+      assert.ok(link, 'The waitlist email should contain a claim link.');
+      const token = new URL(link).searchParams.get('waitlistToken');
+      assert.ok(token);
+      const claimed = await apiRequest('/api/v1/waitlist/claim', { method: 'POST', body: { token } });
+      await expectStatus(claimed, 200);
+      const claim = await responseJson(claimed);
+      assert.notEqual(claim.holdId, fullHold.holdId);
+      assert.equal(claim.players, 1);
+      assert.equal(claim.guest.email, testEmail);
+
+      const listed = await apiRequest('/api/v1/me/waitlist');
+      await expectStatus(listed, 200);
+      assert.ok((await responseJson(listed)).some((entry) => entry.id === waitlistEntry.id && entry.status === 'held'));
+      const left = await apiRequest(`/api/v1/me/waitlist/${waitlistEntry.id}`, { method: 'DELETE', body: {} });
+      await expectStatus(left, 200);
+      assert.equal((await responseJson(left)).cancelled, true);
+
+      const guestHoldResponse = await apiRequest('/api/v1/tee-times/holds', {
+        method: 'POST',
+        body: { slotId: concurrencySlot.slotId, players: Math.min(4, concurrencySlot.spotsLeft) },
+      });
+      await expectStatus(guestHoldResponse, 201);
+      const guestHold = await responseJson(guestHoldResponse);
+      const guestAddress = `198.51.100.${Math.floor(Math.random() * 254) + 1}`;
+      const guestSessionResponse = await fetch(new URL('/api/v1/auth/session', apiOrigin), {
+        headers: { 'x-forwarded-for': guestAddress },
+      });
+      await expectStatus(guestSessionResponse, 200);
+      const guestSessionBody = await responseJson(guestSessionResponse);
+      const guestCookies = getCookies(guestSessionResponse);
+      const guestRequest = (path, options = {}) => fetch(new URL(path, apiOrigin), {
+        ...options,
+        headers: {
+          cookie: [...guestCookies.entries()].map(([name, value]) => `${name}=${value}`).join('; '),
+          'x-forwarded-for': guestAddress,
+          ...(options.headers || {}),
+        },
+      });
+      const guestEmail = `waitlist-${randomUUID()}@example.test`;
+      const guestJoin = await guestRequest('/api/v1/waitlist', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-csrf-token': guestSessionBody.csrfToken },
+        body: JSON.stringify({
+          slotId: Number(concurrencySlot.slotId),
+          players: 1,
+          name: 'Waitlist Guest',
+          phone: '081234567890',
+          email: guestEmail,
+        }),
+      });
+      await expectStatus(guestJoin, 201);
+      const guestEntry = await responseJson(guestJoin);
+      assert.equal(guestEntry.status, 'pending_verification');
+      const verificationEmail = await pool.query(
+        'SELECT body_text FROM email_outbox WHERE dedupe_key=$1',
+        [`waitlist-verify:${guestEntry.id}`],
+      );
+      const verificationLink = verificationEmail.rows[0].body_text.match(/https?:\/\/\S+/)?.[0];
+      assert.ok(verificationLink);
+      const verificationToken = new URL(verificationLink).searchParams.get('token');
+      const verified = await guestRequest('/api/v1/waitlist/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-csrf-token': guestSessionBody.csrfToken },
+        body: JSON.stringify({ token: verificationToken }),
+      });
+      await expectStatus(verified, 200);
+      assert.equal((await responseJson(verified)).status, 'waiting');
+
+      const guestRelease = await apiRequest(`/api/v1/tee-times/holds/${guestHold.holdId}`, { method: 'DELETE' });
+      await expectStatus(guestRelease, 200);
+      const offerEmail = await pool.query(
+        'SELECT body_text FROM email_outbox WHERE dedupe_key LIKE $1 ORDER BY created_at DESC LIMIT 1',
+        [`waitlist-offer:${guestEntry.id}:%`],
+      );
+      assert.equal(offerEmail.rowCount, 1);
+      const offerLink = offerEmail.rows[0].body_text.match(/https?:\/\/\S+/)?.[0];
+      const offerToken = new URL(offerLink).searchParams.get('waitlistToken');
+      const guestClaim = await guestRequest('/api/v1/waitlist/claim', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-csrf-token': guestSessionBody.csrfToken },
+        body: JSON.stringify({ token: offerToken }),
+      });
+      await expectStatus(guestClaim, 200);
+      const guestClaimBody = await responseJson(guestClaim);
+      assert.equal(guestClaimBody.guest.email, guestEmail);
+      const guestClaimRelease = await guestRequest(`/api/v1/tee-times/holds/${guestClaimBody.holdId}`, {
+        method: 'DELETE',
+        headers: { 'x-csrf-token': guestSessionBody.csrfToken },
+      });
+      await expectStatus(guestClaimRelease, 200);
+    });
+
+    await t.test('staff tee sheet supports search and daily operational summary', async () => {
+      await pool.query("UPDATE users SET role='staff' WHERE id=$1", [userId]);
+      const query = new URLSearchParams({ date: testDate, q: booking.reference });
+      const response = await apiRequest(`/api/v1/staff/tee-sheet?${query}`);
+      await expectStatus(response, 200);
+      const sheet = await responseJson(response);
+      assert.ok(sheet.summary.confirmed >= 1);
+      assert.ok(sheet.summary.capacity > 0);
+      const matched = sheet.slots.flatMap((slot) => slot.bookings).find((item) => item.reference === booking.reference);
+      assert.ok(matched, 'Expected the tee sheet search to return the matching booking.');
+      await pool.query("UPDATE users SET role='member' WHERE id=$1", [userId]);
     });
 
     await t.test('retrieves the created booking with its session', async () => {
