@@ -170,7 +170,7 @@ function BookingFlow({ now }) {
 
     dispatch({ type: 'SUBMIT_START' });
     try {
-      const { reference } = await createBooking({
+      const booking = await createBooking({
         holdId: state.holdId,
         caddy: state.caddy,
         buggy: state.buggy,
@@ -180,7 +180,11 @@ function BookingFlow({ now }) {
         termsAccepted: state.agreed,
         clientTotal: quote.total,
       });
-      dispatch({ type: 'SUBMIT_SUCCESS', reference });
+      dispatch({
+        type: 'SUBMIT_SUCCESS',
+        reference: booking.reference,
+        emailNotification: booking.emailNotification,
+      });
     } catch (error) {
       dispatch({
         type: 'SUBMIT_FAILURE',

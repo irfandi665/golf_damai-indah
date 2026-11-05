@@ -33,8 +33,11 @@ sebaiknya menggunakan Redis terkelola dengan autentikasi dan TLS.
    Redis yang siap akan membalas `PONG`.
 3. Salin `.env.example` ke `.env.local`, lalu atur `DATABASE_URL`,
    `REDIS_URL`, `APP_ORIGIN`, `HOLD_IP_HASH_SECRET`, dan
-   `QR_SIGNING_SECRET` (diperlukan untuk alur QR/check-in). Jangan commit
-   `.env.local` atau menyimpan secret di source control.
+   `QR_SIGNING_SECRET` (diperlukan untuk alur QR/check-in). Untuk email,
+   atur `RESEND_API_KEY`, `EMAIL_FROM`, serta `CLUB_CONTACT_EMAIL`. Gunakan
+   domain pengirim yang telah diverifikasi Resend untuk production; alamat
+   `onboarding@resend.dev` hanya untuk pengujian sesuai batas akun Resend.
+   Jangan commit `.env.local` atau menyimpan secret di source control.
 4. Jalankan migrasi. Script migrasi dijalankan langsung oleh Node dan tidak
    membaca `.env.local` secara otomatis; isi `DATABASE_URL` ke environment
    PowerShell sebelum menjalankannya:
@@ -111,6 +114,13 @@ lagi membaca atau menulis tabel tersebut.
 
 - Implementasikan worker untuk sweep hold expiry, outbox notification,
   tier/voucher expiry, dan no-show.
-- Tambahkan verifikasi email, reset password, kebijakan retensi PII, secret
-  rotation, backup/restore test, serta observability dan alert operasional.
+- Email booking, pembatalan, verifikasi, reset password, dan inquiry memakai
+  Resend melalui outbox. Tanpa `RESEND_API_KEY`, pesan tetap antre dan perlu
+  dikirim ulang dari panel admin setelah provider dikonfigurasi.
+- Verifikasi nomor telepon belum aktif karena provider SMS/OTP belum
+  dikonfigurasi. Halaman publik juga menandai alamat, jam buka, kalender acara,
+  instruktur, dan detail fasilitas yang belum diverifikasi; inquiry acara dan
+  Academy hanya permintaan informasi, bukan pendaftaran/pemesanan terkonfirmasi.
+- Tambahkan kebijakan retensi PII, secret rotation, backup/restore test, serta
+  observability dan alert operasional.
 - Uji integrasi konkurensi dengan PostgreSQL dan Redis sebelum peluncuran.

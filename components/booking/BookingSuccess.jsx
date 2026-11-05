@@ -60,8 +60,9 @@ export default function BookingSuccess({ state, quote, onReset }) {
         See you on the first tee
       </h2>
       <p className="mt-5 text-base text-[#F6F2EA]/70">
-        A confirmation has been sent to <span className="text-[#F6F2EA]">{state.guest.email}</span> and{' '}
-        <span className="text-[#F6F2EA]">{state.guest.phone}</span>.
+        {state.emailNotification === 'sent'
+          ? <>Email confirmation sent to <span className="text-[#F6F2EA]">{state.guest.email}</span>.</>
+          : <>Email confirmation is queued for <span className="text-[#F6F2EA]">{state.guest.email}</span> and may be delayed. No SMS confirmation is sent.</>}
       </p>
       <p className="mt-3 text-sm text-[#F6F2EA]/60">
         Payment is settled at the club. This app does not process or confirm payments.

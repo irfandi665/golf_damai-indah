@@ -25,21 +25,40 @@ import {
   redeemReward,
 } from '@/lib/server/member-service';
 import {
+  changePassword,
   loginMember,
   logoutSession,
   registerMember,
+  requestPasswordReset,
+  resetPassword,
+  sendEmailVerification,
   updateMemberProfile,
+  verifyEmail,
 } from '@/lib/server/auth-service';
 import {
   blockTeeSlots,
   checkInBooking,
   completeBooking,
+  getTeeSheet,
   makeBookingQr,
   redeemVoucher,
   updateRateCard,
   updateServiceItem,
   verifyRound,
 } from '@/lib/server/staff-service';
+import {
+  createAnnouncement,
+  createCourseUpdate,
+  createEventInterestEmail,
+  createPublicInquiry,
+  deactivateCourseUpdate,
+  getPublicPricing,
+  listAnnouncements,
+  listCourseUpdates,
+  listInquiries,
+  updateInquiryStatus,
+} from '@/lib/server/public-service';
+import { processEmailOutbox, queueEmail } from '@/lib/server/email-service';
 import {
   createSession,
   getSession,
@@ -122,6 +141,28 @@ async function dispatch(request, segments) {
     return response;
   }
 
+  if (resource === 'auth' && subresource === 'email' && identifier === 'verification' && method === 'POST') {
+    const session = await memberSession(request, true);
+    await enforceRateLimit(request, 'email-verification', 3, 3600);
+    return json(await sendEmailVerification(session.userId));
+  }
+
+  if (resource === 'auth' && subresource === 'email' && identifier === 'verify' && method === 'POST') {
+    await enforceRateLimit(request, 'email-verification-token', 10, 3600);
+    return json(await verifyEmail((await requestBody(request)).token));
+  }
+
+  if (resource === 'auth' && subresource === 'password' && identifier === 'forgot' && method === 'POST') {
+    await enforceRateLimit(request, 'password-reset', 5, 3600);
+    return json(await requestPasswordReset((await requestBody(request)).email), 202);
+  }
+
+  if (resource === 'auth' && subresource === 'password' && identifier === 'reset' && method === 'POST') {
+    await enforceRateLimit(request, 'password-reset-token', 10, 3600);
+    const body = await requestBody(request);
+    return json(await resetPassword(body.token, body.password));
+  }
+
   if (resource === 'tee-times' && !subresource && method === 'GET') {
     const result = await listTeeTimes({
       courseId: Number(url.searchParams.get('courseId') || 1),
@@ -169,7 +210,19 @@ async function dispatch(request, segments) {
     const session = await getSession(request, { required: true, csrf: true });
     const body = await requestBody(request);
     const result = await createBooking({ session, body, idempotencyKey: requireIdempotencyKey(request) });
-    return json(result.body, result.status);
+    const booking = await getBooking({ id: result.body.id, session });
+    const emailKey = `booking-confirmed:${result.body.id}`;
+    await queueEmail({
+      dedupeKey: emailKey,
+      to: booking.guest.email,
+      subject: `Tee time confirmed — ${booking.reference}`,
+      text: `Your tee time reservation is confirmed.\n\nReference: ${booking.reference}\nDate: ${booking.date}\nTime: ${booking.time}\nPlayers: ${booking.players}\nTotal due at the club: Rp${new Intl.NumberFormat('id-ID').format(booking.total)}.\n\nPayment is settled at the club. This website does not process payments.`,
+    });
+    const delivery = await processEmailOutbox({ limit: 1, dedupeKey: emailKey });
+    return json({
+      ...result.body,
+      emailNotification: delivery.sent ? 'sent' : 'queued',
+    }, result.status);
   }
 
   if (resource === 'bookings' && subresource && !identifier && method === 'GET') {
@@ -193,7 +246,16 @@ async function dispatch(request, segments) {
       session,
       idempotencyKey: requireIdempotencyKey(request),
     });
-    return json(result.body, result.status);
+    const booking = await getBooking({ id: subresource, session });
+    const emailKey = `booking-cancelled:${subresource}:${requireIdempotencyKey(request)}`;
+    await queueEmail({
+      dedupeKey: emailKey,
+      to: booking.guest.email,
+      subject: `Reservation cancelled — ${booking.reference}`,
+      text: `Your tee time reservation has been cancelled.\n\nReference: ${booking.reference}\nDate: ${booking.date}\nTime: ${booking.time}\nCancellation category: ${result.body.kind}.\n\nAll payments are settled at the club. This website does not process payments.`,
+    });
+    const delivery = await processEmailOutbox({ limit: 1, dedupeKey: emailKey });
+    return json({ ...result.body, emailNotification: delivery.sent ? 'sent' : 'queued' }, result.status);
   }
 
   if (resource === 'staff' && subresource === 'check-in' && method === 'POST') {
@@ -203,10 +265,25 @@ async function dispatch(request, segments) {
     return json(await checkInBooking({ staffId: session.userId, qrToken: body.qrToken }));
   }
 
+  if (resource === 'staff' && subresource === 'session' && method === 'GET') {
+    const session = await getSession(request, { required: true });
+    await requireRole(session, ['staff', 'admin']);
+    return json({ role: session.role });
+  }
+
   if (resource === 'staff' && subresource === 'bookings' && identifier && action === 'complete' && method === 'POST') {
     const session = await getSession(request, { required: true, csrf: true });
     await requireRole(session, ['staff', 'admin']);
     return json(await completeBooking({ staffId: session.userId, bookingId: identifier }));
+  }
+
+  if (resource === 'staff' && subresource === 'tee-sheet' && method === 'GET') {
+    const session = await getSession(request, { required: true });
+    await requireRole(session, ['staff', 'admin']);
+    return json(await getTeeSheet({
+      date: url.searchParams.get('date'),
+      courseId: Number(url.searchParams.get('courseId') || 1),
+    }));
   }
 
   if (resource === 'staff' && subresource === 'rounds' && identifier && action === 'verify' && method === 'POST') {
@@ -239,6 +316,76 @@ async function dispatch(request, segments) {
     return json(await updateServiceItem({ adminId: session.userId, item: await requestBody(request) }));
   }
 
+  if (resource === 'admin' && subresource === 'inquiries' && !identifier && method === 'GET') {
+    const session = await getSession(request, { required: true });
+    await requireRole(session, ['admin']);
+    return json(await listInquiries({
+      status: url.searchParams.get('status') || 'new',
+      limit: url.searchParams.get('limit') || 50,
+    }));
+  }
+
+  if (resource === 'admin' && subresource === 'inquiries' && identifier && method === 'PATCH') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['admin']);
+    return json(await updateInquiryStatus({ adminId: session.userId, inquiryId: identifier, status: (await requestBody(request)).status }));
+  }
+
+  if (resource === 'admin' && subresource === 'course-updates' && !identifier && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['admin']);
+    return json(await createCourseUpdate({ adminId: session.userId, body: await requestBody(request) }), 201);
+  }
+
+  if (resource === 'admin' && subresource === 'course-updates' && identifier && method === 'DELETE') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['admin']);
+    return json(await deactivateCourseUpdate({ adminId: session.userId, updateId: identifier }));
+  }
+
+  if (resource === 'admin' && subresource === 'announcements' && !identifier && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['admin']);
+    return json(await createAnnouncement({ adminId: session.userId, body: await requestBody(request) }), 201);
+  }
+
+  if (resource === 'admin' && subresource === 'email-outbox' && identifier === 'process' && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['admin']);
+    return json(await processEmailOutbox({ limit: 20 }));
+  }
+
+  if (resource === 'pricing' && !subresource && method === 'GET') {
+    return json(await getPublicPricing());
+  }
+
+  if (resource === 'course-updates' && !subresource && method === 'GET') {
+    return json(await listCourseUpdates());
+  }
+
+  if (resource === 'announcements' && !subresource && method === 'GET') {
+    return json(await listAnnouncements());
+  }
+
+  if (resource === 'inquiries' && !subresource && method === 'POST') {
+    await enforceRateLimit(request, 'public-inquiry', 5, 3600);
+    const inquiry = await createPublicInquiry(await requestBody(request));
+    const notifyAddress = process.env.CLUB_CONTACT_EMAIL;
+    let emailNotification = 'not_configured';
+    if (notifyAddress) {
+      const details = await createEventInterestEmail({ inquiryId: inquiry.id });
+      await queueEmail({
+        dedupeKey: `public-inquiry:${inquiry.id}`,
+        to: notifyAddress,
+        subject: `New ${details.subject} inquiry`,
+        text: `Name: ${details.name}\nEmail: ${details.email}\nSubject: ${details.subject}\n\n${details.message}\n\nReference: ${inquiry.id}`,
+      });
+      const delivery = await processEmailOutbox({ limit: 1, dedupeKey: `public-inquiry:${inquiry.id}` });
+      emailNotification = delivery.sent ? 'sent' : 'queued';
+    }
+    return json({ ...inquiry, emailNotification }, 201);
+  }
+
   if (resource === 'me' && !subresource && method === 'GET') {
     const session = await memberSession(request);
     return json(await getMemberProfile(session.userId));
@@ -247,6 +394,12 @@ async function dispatch(request, segments) {
   if (resource === 'me' && !subresource && method === 'PATCH') {
     const session = await memberSession(request, true);
     return json(await updateMemberProfile(session.userId, await requestBody(request)));
+  }
+
+  if (resource === 'me' && subresource === 'password' && method === 'PATCH') {
+    const session = await memberSession(request, true);
+    const body = await requestBody(request);
+    return json(await changePassword(session.userId, body.currentPassword, body.newPassword));
   }
 
   if (resource === 'me' && subresource === 'dashboard' && method === 'GET') {

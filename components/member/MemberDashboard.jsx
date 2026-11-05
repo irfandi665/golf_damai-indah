@@ -22,6 +22,32 @@ import {
   getTierProgress,
 } from '@/lib/member/utils';
 
+function MemberNavigation() {
+  const links = [
+    ['Overview', '#member-heading'],
+    ['Bookings', '#bookings'],
+    ['Handicap', '#handicap'],
+    ['Loyalty', '#loyalty'],
+  ];
+  return (
+    <nav aria-label="Member sections" className="mx-auto max-w-7xl px-6 pt-24 lg:px-10 lg:pt-28">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#C9A96E]/15 pb-4">
+        {links.map(([label, href]) => (
+          <a key={href} href={href} className="rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-[#F6F2EA]/60 hover:bg-white/[0.05] hover:text-[#C9A96E]">
+            {label}
+          </a>
+        ))}
+        <Link href="/member/profile" className="rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-[#F6F2EA]/60 hover:bg-white/[0.05] hover:text-[#C9A96E]">
+          Profile & security
+        </Link>
+        <Link href="/booking" className="ml-auto rounded-full bg-[#C9A96E] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#0F2A20]">
+          Book a round
+        </Link>
+      </div>
+    </nav>
+  );
+}
+
 function DashboardSkeleton() {
   return (
     <div aria-busy="true" className="mx-auto max-w-7xl px-6 pb-24 pt-32 lg:px-10 lg:pt-40">
@@ -51,6 +77,18 @@ function DashboardView({ data, now, onRefresh }) {
     ...initial,
     notice: null,
   }));
+  const [announcements, setAnnouncements] = useState([]);
+  const [announcementError, setAnnouncementError] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/v1/announcements', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Announcements unavailable.');
+        return response.json();
+      })
+      .then(setAnnouncements)
+      .catch(() => setAnnouncementError(true));
+  }, []);
 
   const dispatchToApi = async (action) => {
     try {
@@ -126,10 +164,24 @@ function DashboardView({ data, now, onRefresh }) {
 
   return (
     <MotionConfig reducedMotion="user">
+      <MemberNavigation />
       <section
         aria-labelledby="member-heading"
-        className="mx-auto max-w-7xl px-6 pb-24 pt-32 lg:px-10 lg:pt-40"
+        className="mx-auto max-w-7xl px-6 pb-24 pt-8 lg:px-10"
       >
+        {(announcements.length > 0 || announcementError) && (
+          <section aria-label="Club announcements" className="mb-8 space-y-3">
+            {announcementError && <p role="status" className="text-sm text-amber-100">Club announcements are temporarily unavailable.</p>}
+            {announcements.map((announcement) => (
+              <article key={announcement.id} className="rounded-xl border border-[#C9A96E]/25 bg-[#C9A96E]/[0.07] p-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#C9A96E]">Club announcement</p>
+                <h2 className="mt-2 text-base font-semibold">{announcement.title}</h2>
+                <p className="mt-1 text-sm text-[#F6F2EA]/65">{announcement.message}</p>
+                {announcement.href && <Link href={announcement.href} className="mt-3 inline-block text-xs text-[#C9A96E] underline underline-offset-4">Learn more</Link>}
+              </article>
+            ))}
+          </section>
+        )}
         <ProfileHeader
           member={state.member}
           now={now}

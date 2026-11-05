@@ -12,9 +12,11 @@ import {
 const EASE = [0.22, 1, 0.36, 1];
 
 const NAV_LINKS = [
-  { label: 'The Course', href: '/#course' },
-  { label: 'Clubhouse', href: '/#clubhouse' },
-  { label: 'Pro Shop', href: '/#pro-shop' },
+  { label: 'Course & Club', href: '/course' },
+  { label: 'Prices', href: '/pricing' },
+  { label: 'Events', href: '/events' },
+  { label: 'Academy', href: '/academy' },
+  { label: 'Visit', href: '/contact' },
 ];
 
 function Logo({ onClick }) {
@@ -70,7 +72,7 @@ export default function Navbar() {
 
   // Tutup menu mobile otomatis saat viewport membesar ke desktop
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const mediaQuery = window.matchMedia('(min-width: 1280px)');
     const onChange = (event) => {
       if (event.matches) setOpen(false);
     };
@@ -101,12 +103,12 @@ export default function Navbar() {
           <Logo onClick={closeMenu} />
 
           {/* Navigasi desktop */}
-          <nav aria-label="Navigasi utama" className="hidden items-center gap-10 lg:flex">
+          <nav aria-label="Navigasi utama" className="hidden items-center gap-5 xl:gap-7 xl:flex">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="relative text-xs font-medium uppercase tracking-[0.25em] text-[#F6F2EA]/80 transition-colors duration-300 after:absolute after:-bottom-2 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-[#C9A96E] after:transition-transform after:duration-500 hover:text-[#C9A96E] hover:after:scale-x-100 focus-visible:text-[#C9A96E] focus-visible:outline-none"
+                className="relative text-[0.65rem] font-medium uppercase tracking-[0.16em] text-[#F6F2EA]/80 transition-colors duration-300 after:absolute after:-bottom-2 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-[#C9A96E] after:transition-transform after:duration-500 hover:text-[#C9A96E] hover:after:scale-x-100 focus-visible:text-[#C9A96E] focus-visible:outline-none"
               >
                 {link.label}
               </Link>
@@ -116,7 +118,7 @@ export default function Navbar() {
           <div className="flex items-center gap-4">
             <Link
               href="/member"
-              className="hidden text-xs font-medium uppercase tracking-[0.25em] text-[#F6F2EA]/80 transition-colors duration-300 hover:text-[#C9A96E] focus-visible:outline-none focus-visible:text-[#C9A96E] lg:inline-block"
+              className="hidden text-xs font-medium uppercase tracking-[0.25em] text-[#F6F2EA]/80 transition-colors duration-300 hover:text-[#C9A96E] focus-visible:outline-none focus-visible:text-[#C9A96E] xl:inline-block"
             >
               Member Login
             </Link>
@@ -135,7 +137,7 @@ export default function Navbar() {
               aria-expanded={open}
               aria-controls="mobile-menu"
               aria-label={open ? 'Tutup menu' : 'Buka menu'}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-[#C9A96E]/40 text-[#F6F2EA] transition-colors duration-300 hover:border-[#C9A96E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] lg:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-[#C9A96E]/40 text-[#F6F2EA] transition-colors duration-300 hover:border-[#C9A96E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] xl:hidden"
             >
               <span className="relative block h-3.5 w-5">
                 <span
@@ -171,7 +173,7 @@ export default function Navbar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE }}
-            className="fixed inset-0 z-40 flex flex-col justify-between bg-[#0F2A20]/95 px-6 pb-10 pt-28 backdrop-blur-2xl lg:hidden"
+            className="fixed inset-0 z-40 flex flex-col justify-between bg-[#0F2A20]/95 px-6 pb-10 pt-28 backdrop-blur-2xl xl:hidden"
           >
             <nav aria-label="Navigasi mobile" className="flex flex-col">
               {NAV_LINKS.map((link, index) => (

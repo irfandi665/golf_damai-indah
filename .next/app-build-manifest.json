@@ -11,25 +11,25 @@
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
     ],
-    "/booking/page": [
+    "/course/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/booking/page.js"
+      "static/chunks/app/course/page.js"
+    ],
+    "/pricing/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/pricing/page.js"
     ],
     "/api/v1/[...path]/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/v1/[...path]/route.js"
     ],
-    "/member/page": [
+    "/booking/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/member/page.js"
-    ],
-    "/member/login/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/member/login/page.js"
+      "static/chunks/app/booking/page.js"
     ],
     "/_not-found/page": [
       "static/chunks/webpack.js",

@@ -656,6 +656,17 @@ agar request bersamaan tidak melewati batas. Staff verify menyimpan
 | `GET /api/v1/rewards` | Publik/member | Katalog reward aktif |
 | `POST /api/v1/me/rewards/{code}/redeem` | Member | Tukar poin secara idempotent |
 | `GET /api/v1/me/vouchers?status=active` | Member | Voucher milik member |
+| `PATCH /api/v1/me/password` | Member + CSRF | Ganti password dan cabut sesi aktif |
+| `POST /api/v1/auth/password/forgot` | Publik, rate-limited | Minta tautan reset secara generik |
+| `POST /api/v1/auth/password/reset` | Token email | Reset password dan cabut sesi |
+| `POST /api/v1/auth/email/verification` | Member + CSRF | Kirim tautan verifikasi melalui email |
+| `POST /api/v1/auth/email/verify` | Token email | Verifikasi alamat email |
+
+Verifikasi nomor telepon belum aktif sampai provider SMS/OTP dikonfigurasi.
+Booking dan pembatalan membuat pesan konfirmasi dalam email outbox. Pengiriman
+menggunakan Resend (`RESEND_API_KEY`, `EMAIL_FROM`); tanpa konfigurasi, pesan
+tetap berstatus antre dan admin dapat mencoba ulang. Inquiry publik tersimpan
+untuk tindak lanjut staf; pemberitahuan email memerlukan `CLUB_CONTACT_EMAIL`.
 
 Penukaran poin menggunakan satu transaksi dan conditional debit:
 
@@ -692,9 +703,22 @@ boleh melalui proses verifikasi email dan tidak boleh menghasilkan earn ganda.
 | `POST /api/v1/staff/bookings/{id}/complete` | Staff | Selesaikan ronde; idempotently memicu earn, cashback, outbox |
 | `POST /api/v1/staff/rounds/{id}/verify` | Staff | Verifikasi skor/sumber, hitung ulang handicap dan tier |
 | `POST /api/v1/staff/vouchers/{code}/redeem` | Staff | Gunakan voucher aktif, kaitkan ke booking dalam transaksi |
+| `GET /api/v1/staff/tee-sheet?date=YYYY-MM-DD` | Staff | Lihat kapasitas, booking, hold dan status slot |
 | `PUT /api/v1/admin/tee-sheet/blocks` | Admin | Blokir slot; konflik booking aktif memerlukan pemindahan eksplisit |
 | `PUT /api/v1/admin/rate-cards` | Admin | Ubah tarif untuk booking baru; validasi overlap |
 | `PUT /api/v1/admin/service-items` | Admin | Kelola harga/layanan aktif untuk booking baru |
+| `POST /api/v1/admin/course-updates` | Admin | Publikasikan status operasional lapangan |
+| `POST /api/v1/admin/announcements` | Admin | Publikasikan pengumuman in-app member |
+| `GET/PATCH /api/v1/admin/inquiries[/{id}]` | Admin | Tinjau inquiry dan ubah status tindak lanjut |
+| `POST /api/v1/admin/email-outbox/process` | Admin | Coba kirim ulang pesan email tertunda |
+
+Endpoint publik `GET /api/v1/pricing`, `/course-updates`, dan `/announcements`
+menyediakan rate/service aktif, status operasional, serta pengumuman. `POST
+/api/v1/inquiries` menyimpan inquiry event, Academy, atau kontak dengan
+validasi dan rate limit. Form event/Academy adalah permintaan informasi, bukan
+pendaftaran acara atau reservasi kelas terkonfirmasi. Data alamat, jam buka,
+kalender event, instruktur, dan peta harus diverifikasi klub sebelum diisi;
+status cuaca langsung memerlukan provider yang belum dikonfigurasi.
 
 Semua aksi staff/admin menulis `audit_log` dengan aktor, aksi, entitas, serta
 state sebelum/sesudah. PII sensitif tidak disalin ke audit yang tidak

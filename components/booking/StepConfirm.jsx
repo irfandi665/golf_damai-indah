@@ -9,6 +9,7 @@ import {
   formatLongDate,
   pluralize,
 } from '@/lib/booking/utils';
+import Link from 'next/link';
 
 function TextField({
   id,
@@ -202,7 +203,8 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
                 className="mt-1 h-4 w-4 flex-none accent-[#C9A96E]"
               />
               <span>
-                I understand the booking terms. {CANCELLATION_POLICY}
+                I understand the booking terms. {CANCELLATION_POLICY}{' '}
+                <Link href="/policies" className="text-[#C9A96E] underline underline-offset-4">Read all booking policies</Link>.
               </span>
             </label>
             {showErrors && errors.agreed && (

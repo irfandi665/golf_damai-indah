@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -48,7 +48,12 @@ function ArrowIcon() {
 
 export default function HeroSection() {
   const sectionRef = useRef(null);
-  const prefersReducedMotion = useReducedMotion();
+  const reducedMotionPreference = useReducedMotion();
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    setPrefersReducedMotion(Boolean(reducedMotionPreference));
+  }, [reducedMotionPreference]);
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,

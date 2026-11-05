@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { apiRequest } from '@/lib/api-client';
 
 const inputClass = 'w-full rounded-xl border border-[#C9A96E]/25 bg-white/[0.04] px-4 py-3.5 text-base text-[#F6F2EA] focus:border-[#C9A96E] focus:outline-none focus:ring-2 focus:ring-[#C9A96E]';
@@ -82,6 +83,11 @@ export default function MemberAuthForm() {
           {mode === 'login' ? 'Create an account' : 'Sign in'}
         </button>
       </p>
+      {mode === 'login' && (
+        <p className="mt-4 text-center text-sm">
+          <Link href="/member/forgot-password" className="text-[#C9A96E] underline underline-offset-4">Forgot your password?</Link>
+        </p>
+      )}
     </section>
   );
 }

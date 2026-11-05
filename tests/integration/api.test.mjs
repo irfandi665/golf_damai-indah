@@ -27,6 +27,7 @@ const redis = redisUrl ? createClient({ url: redisUrl }) : null;
 const cookieJar = new Map();
 const sessionTokens = new Set();
 const createdSlotIds = new Set();
+const createdInquiryIds = new Set();
 const testAddress = `192.0.2.${Math.floor(Math.random() * 254) + 1}`;
 const holdAddresses = [
   `192.0.2.${Math.floor(Math.random() * 254) + 1}`,
@@ -139,6 +140,11 @@ async function cleanup() {
     const ids = bookingIds.rows.map((row) => row.id);
 
     if (ids.length) {
+      await client.query(
+        `DELETE FROM email_outbox
+         WHERE dedupe_key=ANY($1::text[]) OR dedupe_key LIKE ANY($2::text[])`,
+        [ids.map((id) => `booking-confirmed:${id}`), ids.flatMap((id) => [`booking-cancelled:${id}:%`])],
+      );
       await client.query('DELETE FROM booking_access_tokens WHERE booking_id = ANY($1::uuid[])', [ids]);
       await client.query('DELETE FROM booking_items WHERE booking_id = ANY($1::uuid[])', [ids]);
       await client.query('DELETE FROM bookings WHERE id = ANY($1::uuid[])', [ids]);
@@ -148,10 +154,19 @@ async function cleanup() {
       await client.query('DELETE FROM sessions WHERE id = ANY($1::uuid[])', [sessionIds]);
     }
     if (userId) {
+      await client.query(
+        'DELETE FROM email_outbox WHERE dedupe_key LIKE ANY($1::text[])',
+        [[`verify-email:${userId}:%`, `reset-password:${userId}:%`]],
+      );
       await client.query('DELETE FROM idempotency_keys WHERE scope LIKE $1', [`${userId}:%`]);
       await client.query('DELETE FROM member_balances WHERE user_id = $1', [userId]);
       await client.query('DELETE FROM members WHERE user_id = $1', [userId]);
       await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    }
+    if (createdInquiryIds.size) {
+      const inquiryIds = [...createdInquiryIds];
+      await client.query('DELETE FROM email_outbox WHERE dedupe_key=ANY($1::text[])', [inquiryIds.map((id) => `public-inquiry:${id}`)]);
+      await client.query('DELETE FROM public_inquiries WHERE id=ANY($1::uuid[])', [inquiryIds]);
     }
     const slotIds = [...createdSlotIds];
     if (slotIds.length) {
@@ -196,6 +211,42 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
   assert.equal(healthBody.authenticated, false);
 
   try {
+    await t.test('serves current public pricing, operations status and announcements', async () => {
+      const [pricingResponse, operationsResponse, announcementsResponse] = await Promise.all([
+        fetch(new URL('/api/v1/pricing', apiOrigin)),
+        fetch(new URL('/api/v1/course-updates', apiOrigin)),
+        fetch(new URL('/api/v1/announcements', apiOrigin)),
+      ]);
+      await expectStatus(pricingResponse, 200);
+      await expectStatus(operationsResponse, 200);
+      await expectStatus(announcementsResponse, 200);
+      const pricing = await responseJson(pricingResponse);
+      assert.match(pricing.paymentDisclaimer, /settled at the club/i);
+      assert.ok(pricing.rates.length > 0);
+      assert.ok(pricing.services.length > 0);
+      assert.ok(Array.isArray(await responseJson(operationsResponse)));
+      assert.ok(Array.isArray(await responseJson(announcementsResponse)));
+    });
+
+    await t.test('accepts a public event inquiry for staff follow-up', async () => {
+      const response = await fetch(new URL('/api/v1/inquiries', apiOrigin), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testAddress },
+        body: JSON.stringify({
+          type: 'event',
+          name: 'Integration Event Guest',
+          email: `event-${randomUUID()}@example.test`,
+          subject: 'Tournament interest',
+          message: 'Please share upcoming tournament information.',
+        }),
+      });
+      await expectStatus(response, 201);
+      const inquiry = await responseJson(response);
+      assert.ok(inquiry.id);
+      createdInquiryIds.add(inquiry.id);
+      assert.ok(['not_configured', 'queued', 'sent'].includes(inquiry.emailNotification));
+    });
+
     await t.test('registers a disposable member through the API', async () => {
       testEmail = `integration-${randomUUID()}@example.test`;
       const response = await apiRequest('/api/v1/auth/register', {
@@ -219,6 +270,15 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       assert.ok(body.csrfToken);
       userId = body.user.id;
       t.diagnostic(`Created disposable member ${userId}`);
+    });
+
+    await t.test('loads member profile and exposes verification states', async () => {
+      const response = await apiRequest('/api/v1/me');
+      await expectStatus(response, 200);
+      const profile = await responseJson(response);
+      assert.equal(profile.email, testEmail);
+      assert.equal(profile.emailVerified, false);
+      assert.equal(profile.phoneVerified, false);
     });
 
     let testDate;
@@ -302,6 +362,7 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       booking = await responseJson(firstResponse);
       assert.equal(booking.status, 'confirmed');
       assert.equal(booking.paymentMode, 'pay_at_club');
+      assert.ok(['queued', 'sent'].includes(booking.emailNotification));
       bookingId = booking.id;
 
       const replayResponse = await apiRequest('/api/v1/bookings', options);
@@ -316,6 +377,14 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       assert.equal(body.id, bookingId);
       assert.equal(body.paymentMode, 'pay_at_club');
       assert.equal(body.status, 'confirmed');
+    });
+
+    await t.test('issues a short-lived member check-in QR token', async () => {
+      const response = await apiRequest(`/api/v1/bookings/${bookingId}/qr`);
+      await expectStatus(response, 200);
+      const body = await responseJson(response);
+      assert.equal(body.qrToken.split('.').length, 4);
+      assert.ok(Date.parse(body.expiresAt) > Date.now());
     });
 
     await t.test('allows only one concurrent hold for the remaining capacity', async () => {

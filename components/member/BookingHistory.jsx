@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CADDY_OPTIONS, formatCurrency, pluralize } from '@/lib/booking/utils';
 import Panel from './Panel';
+import BookingQr from './BookingQr';
 import {
   buildCalendarUrl,
   formatDateTime,
@@ -125,6 +126,7 @@ function BookingCard({ booking, now, confirming, onAskCancel, onKeep, onConfirmC
                 >
                   Add to Calendar
                 </a>
+                <BookingQr bookingId={booking.id} />
                 <button
                   type="button"
                   onClick={onAskCancel}
