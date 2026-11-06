@@ -562,6 +562,10 @@ pemanggil.
     "email": "rizky@example.com"
   },
   "notes": "",
+  "serviceRequests": {
+    "preferredCaddy": "Optional",
+    "rentalNeeds": "Golf clubs, right-handed"
+  },
   "termsAccepted": true,
   "clientTotal": 7115100
 }
@@ -569,7 +573,9 @@ pemanggil.
 
 Dalam transaksi database, server mengunci hold/slot, memvalidasi owner dan
 expiry, menghitung quote dari data server, membandingkan `clientTotal`,
-mengonversi hold, lalu menyimpan booking dan snapshot item.
+mengonversi hold, lalu menyimpan booking dan snapshot item. `serviceRequests`
+opsional; `preferredCaddy` maksimal 120 karakter dan `rentalNeeds` maksimal
+300 karakter. Permintaan tidak menjamin penugasan atau ketersediaan.
 
 - Booking langsung berstatus `confirmed`; respons `201` berisi referensi,
   total, dan `paymentMode: "pay_at_club"`.
@@ -789,6 +795,8 @@ sendiri. Sembunyikan kontrol di UI bukan pengganti pemeriksaan role pada API.
 | `POST /api/v1/staff/rounds/{id}/verify` | Starter/front desk/admin + CSRF | Verifikasi skor/sumber, hitung ulang handicap dan tier |
 | `POST /api/v1/staff/vouchers/{code}/redeem` | Front desk/admin + CSRF | Gunakan voucher aktif, kaitkan ke booking dalam transaksi |
 | `GET /api/v1/staff/tee-sheet?date=YYYY-MM-DD&q=...` | Starter/front desk/admin | Cari reference, nama, atau telepon; tampilkan kapasitas, booking, hold, status, dan ringkasan harian |
+| `GET /api/v1/staff/waitlist?date=YYYY-MM-DD` | Front desk/admin | Daftar tunggu exact-slot pada tanggal tee time; memuat data kontak untuk operasional |
+| `POST /api/v1/staff/bookings/{id}/checkpoints` | Starter/front desk/admin + CSRF | Catat checkpoint manual hole 9 atau 18 untuk booking checked-in/completed; satu catatan per hole, timestamp server, tidak menghitung pace |
 | `POST /api/v1/staff/course-updates` | Starter/front desk + CSRF | Ajukan perubahan kondisi lapangan berstatus pending; belum tampil publik |
 | `GET /api/v1/admin/bookings?date=YYYY-MM-DD&attendance=all|not_arrived|arrived&payment=all|unpaid|down_payment|paid&q=...` | Front desk/admin | Laporan reservasi harian; `format=csv` mengekspor rekap, termasuk status pembayaran manual |
 | `PATCH /api/v1/admin/bookings/{id}` | Admin + CSRF | Override `attendanceStatus` (`confirmed`/`checked_in`) dan/atau `paymentStatus`; mencatat audit dan `checkedInAt` |
@@ -808,7 +816,9 @@ sendiri. Sembunyikan kontrol di UI bukan pengganti pemeriksaan role pada API.
 
 Migrasi `006_staff_operations.sql` menambahkan role operasional baru, catatan
 booking, status kesiapan layanan, serta alur approval update kondisi lapangan.
-Seluruh perubahan operasional penting ditulis ke `audit_log`.
+Migrasi `007_staff_waitlist_marshal_requests.sql` menambahkan checkpoint marshal
+manual dan field soft-request layanan pada booking. Seluruh perubahan
+operasional penting ditulis ke `audit_log`.
 | `PUT /api/v1/admin/rate-cards` | Admin | Ubah tarif untuk booking baru; validasi overlap |
 | `PUT /api/v1/admin/service-items` | Admin | Kelola harga/layanan aktif untuk booking baru |
 | `POST /api/v1/admin/course-updates` | Admin | Publikasikan status operasional lapangan |

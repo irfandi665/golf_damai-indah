@@ -449,6 +449,7 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       holdId: hold.holdId,
       termsAccepted: true,
       guest: { name: 'Integration Test', phone: '081234567890', email: `integration-booking-${randomUUID()}@example.test` },
+      serviceRequests: { preferredCaddy: 'Caddy Request Test', rentalNeeds: 'Left-handed clubs' },
       caddy: 'standard',
       buggy: false,
       teeBox: 'Tee 10',
@@ -555,6 +556,11 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       const listed = await apiRequest('/api/v1/me/waitlist');
       await expectStatus(listed, 200);
       assert.ok((await responseJson(listed)).some((entry) => entry.id === waitlistEntry.id && entry.status === 'held'));
+      await pool.query("UPDATE users SET role='front_desk' WHERE id=$1", [userId]);
+      const staffWaitlist = await apiRequest(`/api/v1/staff/waitlist?date=${testDate}`);
+      await expectStatus(staffWaitlist, 200);
+      assert.ok((await responseJson(staffWaitlist)).entries.some((entry) => entry.id === waitlistEntry.id));
+      await pool.query("UPDATE users SET role='member' WHERE id=$1", [userId]);
       const left = await apiRequest(`/api/v1/me/waitlist/${waitlistEntry.id}`, { method: 'DELETE', body: {} });
       await expectStatus(left, 200);
       assert.equal((await responseJson(left)).cancelled, true);
@@ -653,6 +659,7 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       assert.ok(matched, 'Expected the tee sheet search to return the matching booking.');
       assert.equal(matched.services.length, 0);
       assert.equal(matched.notes.length, 0);
+      assert.deepEqual(matched.serviceRequests, { preferredCaddy: 'Caddy Request Test', rentalNeeds: 'Left-handed clubs' });
 
       const noteResponse = await apiRequest(`/api/v1/staff/bookings/${bookingId}/notes`, {
         method: 'POST',
@@ -666,6 +673,22 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       });
       await expectStatus(readinessResponse, 200);
       assert.equal((await responseJson(readinessResponse)).status, 'ready');
+
+      await pool.query("UPDATE bookings SET status='checked_in',checked_in_at=now() WHERE id=$1", [bookingId]);
+      const checkpointResponse = await apiRequest(`/api/v1/staff/bookings/${bookingId}/checkpoints`, {
+        method: 'POST',
+        body: { holeNumber: 9, note: 'Integration checkpoint.' },
+      });
+      await expectStatus(checkpointResponse, 201);
+      const checkpoint = await responseJson(checkpointResponse);
+      assert.equal(checkpoint.hole_number, 9);
+      assert.ok(checkpoint.observed_at);
+      const duplicateCheckpoint = await apiRequest(`/api/v1/staff/bookings/${bookingId}/checkpoints`, {
+        method: 'POST',
+        body: { holeNumber: 9 },
+      });
+      assert.equal(duplicateCheckpoint.status, 409);
+      await pool.query("UPDATE bookings SET status='confirmed',checked_in_at=NULL WHERE id=$1", [bookingId]);
 
       const forbiddenPayment = await apiRequest(`/api/v1/staff/bookings/${bookingId}/payment`, {
         method: 'PATCH',
@@ -685,12 +708,41 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       const publicUpdates = await apiRequest('/api/v1/course-updates');
       assert.ok(!(await responseJson(publicUpdates)).some((item) => item.id === proposal.id));
 
+      await pool.query("UPDATE users SET role='starter' WHERE id=$1", [userId]);
+      const forbiddenWaitlist = await apiRequest(`/api/v1/staff/waitlist?date=${testDate}`);
+      assert.equal(forbiddenWaitlist.status, 403);
       await pool.query("UPDATE users SET role='admin' WHERE id=$1", [userId]);
       const selfRoleChange = await apiRequest(`/api/v1/admin/staff/${userId}`, {
         method: 'PATCH',
         body: { role: 'member' },
       });
       assert.equal(selfRoleChange.status, 422);
+      const freeSlot = await pool.query(
+        `SELECT id FROM tee_slots WHERE tee_date=$1 AND status='open'
+         AND booked_spots=0 AND held_spots=0 AND id<>ALL($2::bigint[])
+         ORDER BY tee_time LIMIT 1`,
+        [testDate, [selectedSlot.slotId, concurrencySlot.slotId, rescheduleSlot.slotId].map(Number)],
+      );
+      assert.equal(freeSlot.rowCount, 1, 'Expected a separate empty tee slot for the reopening test.');
+      const waitlistSlotId = freeSlot.rows[0].id;
+      await pool.query(
+        `INSERT INTO tee_time_waitlist(slot_id,user_id,session_id,guest_name,guest_phone,guest_email,players,status)
+         VALUES($1,$2,$3,'Waitlist Reopen Test','081234567890',$4,1,'waiting')`,
+        [waitlistSlotId, userId, sessionId, testEmail],
+      );
+      const blockedForWaitlist = await apiRequest('/api/v1/admin/tee-sheet/blocks', {
+        method: 'PUT',
+        body: { courseId: 1, date: testDate, slotIds: [String(waitlistSlotId)], blocked: true, reason: 'Integration waitlist test' },
+      });
+      await expectStatus(blockedForWaitlist, 200);
+      const reopenedForWaitlist = await apiRequest('/api/v1/admin/tee-sheet/blocks', {
+        method: 'PUT',
+        body: { courseId: 1, date: testDate, slotIds: [String(waitlistSlotId)], blocked: false },
+      });
+      await expectStatus(reopenedForWaitlist, 200);
+      assert.equal((await responseJson(reopenedForWaitlist)).waitlistOffers.length, 1);
+      const reopenedEntry = await pool.query('SELECT status FROM tee_time_waitlist WHERE slot_id=$1', [waitlistSlotId]);
+      assert.equal(reopenedEntry.rows[0].status, 'held');
       const occupiedBlock = await apiRequest('/api/v1/admin/tee-sheet/blocks', {
         method: 'PUT',
         body: { courseId: 1, date: testDate, slotIds: [rescheduleSlot.slotId], blocked: true, reason: 'Integration conflict check' },
@@ -737,6 +789,7 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       assert.equal(body.paymentStatus, 'unpaid');
       const expectedPackage = [0, 6].includes(new Date(`${testDate}T00:00:00.000Z`).getUTCDay()) ? 'Weekend' : 'Weekday';
       assert.equal(body.packageType, expectedPackage);
+      assert.deepEqual(body.serviceRequests, { preferredCaddy: 'Caddy Request Test', rentalNeeds: 'Left-handed clubs' });
       assert.equal(body.status, 'confirmed');
     });
 

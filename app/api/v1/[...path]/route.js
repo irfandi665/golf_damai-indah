@@ -43,10 +43,12 @@ import {
   checkInBookingById,
   completeBooking,
   getAdminAuditLog,
+  getStaffWaitlist,
   getTeeSheet,
   getAdminBookingReport,
   makeBookingQr,
   redeemVoucher,
+  recordBookingCheckpoint,
   searchStaffAccounts,
   validateBookingTicket,
   updateAdminBooking,
@@ -85,6 +87,7 @@ import {
   claimWaitlistOffer,
   listMemberWaitlist,
   offerWaitlistForSlot,
+  offerWaitlistForReopenedSlots,
   registerWaitlist,
   verifyWaitlistEmail,
 } from '@/lib/server/waitlist-service';
@@ -423,6 +426,24 @@ async function dispatch(request, segments) {
     return json(await updateBookingServiceReadiness({ staffId: session.userId, bookingId: identifier, ...(await requestBody(request)) }));
   }
 
+  if (resource === 'staff' && subresource === 'bookings' && identifier && action === 'checkpoints' && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['starter', 'front_desk', 'admin']);
+    const body = await requestBody(request);
+    return json(await recordBookingCheckpoint({
+      staffId: session.userId,
+      bookingId: identifier,
+      holeNumber: body.holeNumber,
+      note: body.note,
+    }), 201);
+  }
+
+  if (resource === 'staff' && subresource === 'waitlist' && method === 'GET') {
+    const session = await getSession(request, { required: true });
+    await requireRole(session, ['front_desk', 'admin']);
+    return json(await getStaffWaitlist({ date: url.searchParams.get('date') }));
+  }
+
   if (resource === 'staff' && subresource === 'bookings' && identifier && action === 'payment' && method === 'PATCH') {
     const session = await getSession(request, { required: true, csrf: true });
     await requireRole(session, ['front_desk', 'admin']);
@@ -466,7 +487,10 @@ async function dispatch(request, segments) {
   if (resource === 'admin' && subresource === 'tee-sheet' && identifier === 'blocks' && method === 'PUT') {
     const session = await getSession(request, { required: true, csrf: true });
     await requireRole(session, ['admin']);
-    return json(await blockTeeSlots({ adminId: session.userId, ...(await requestBody(request)) }));
+    const result = await blockTeeSlots({ adminId: session.userId, ...(await requestBody(request)) });
+    const waitlistOffers = await offerWaitlistForReopenedSlots(result.reopenedSlotIds);
+    const { reopenedSlotIds, ...response } = result;
+    return json({ ...response, waitlistOffers });
   }
 
   if (resource === 'admin' && subresource === 'rate-cards' && method === 'PUT') {

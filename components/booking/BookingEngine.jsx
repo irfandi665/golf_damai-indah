@@ -195,6 +195,7 @@ function BookingFlow({ now }) {
         extras: state.extras,
         guest: state.guest,
         notes: state.guest.notes,
+        serviceRequests: state.serviceRequests,
         termsAccepted: state.agreed,
         clientTotal: quote.total,
         teeBox: state.teeBox,

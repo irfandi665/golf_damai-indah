@@ -23,6 +23,7 @@ function TextField({
   placeholder,
   optional = false,
   multiline = false,
+  helperText,
 }) {
   const shared = {
     id,
@@ -32,7 +33,10 @@ function TextField({
     autoComplete,
     inputMode,
     'aria-invalid': error ? 'true' : undefined,
-    'aria-describedby': error ? `${id}-error` : undefined,
+    'aria-describedby': [
+      error && `${id}-error`,
+      helperText && `${id}-help`,
+    ].filter(Boolean).join(' ') || undefined,
     onChange: (event) => onChange(event.target.value),
     className: `w-full rounded-xl border bg-white/[0.04] px-4 py-3.5 text-base text-[#F6F2EA] placeholder:text-[#F6F2EA]/30 transition-colors focus:outline-none focus:ring-2 focus:ring-[#C9A96E] ${
       error ? 'border-red-300/60' : 'border-[#C9A96E]/25 focus:border-[#C9A96E]'
@@ -49,6 +53,11 @@ function TextField({
       {error && (
         <p id={`${id}-error`} className="mt-2 text-sm text-red-300">
           {error}
+        </p>
+      )}
+      {helperText && (
+        <p id={`${id}-help`} className="mt-2 text-xs text-[#F6F2EA]/45">
+          {helperText}
         </p>
       )}
     </div>
@@ -207,10 +216,32 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
             label="Special Requests"
             multiline
             optional
-            placeholder="Preferred caddy, accessibility needs, celebration…"
+            placeholder="Celebration, seating preference…"
+            helperText="Do not include medical, allergy, or other sensitive information."
             value={guest.notes}
             onChange={setField('notes')}
           />
+          <div className="grid gap-5 sm:grid-cols-2">
+            <TextField
+              id="preferredCaddy"
+              label="Preferred Caddy"
+              optional
+              placeholder="Name, if requested"
+              value={state.serviceRequests.preferredCaddy}
+              onChange={(value) => dispatch({ type: 'SET_SERVICE_REQUEST_FIELD', field: 'preferredCaddy', value })}
+            />
+            <TextField
+              id="rentalNeeds"
+              label="Equipment Request"
+              optional
+              placeholder="For example, left-handed clubs"
+              value={state.serviceRequests.rentalNeeds}
+              onChange={(value) => dispatch({ type: 'SET_SERVICE_REQUEST_FIELD', field: 'rentalNeeds', value })}
+            />
+          </div>
+          <p className="-mt-2 text-xs text-[#F6F2EA]/45">
+            Requests are not guaranteed and do not confirm service assignment. Do not enter medical or other sensitive information here.
+          </p>
 
           <div>
             <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-[#F6F2EA]/75">

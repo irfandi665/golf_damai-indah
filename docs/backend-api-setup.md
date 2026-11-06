@@ -38,8 +38,9 @@ sebaiknya menggunakan Redis terkelola dengan autentikasi dan TLS.
    menambahkan pilihan tee box, paket, pencatatan pembayaran, token e-ticket,
    serta HTML/lampiran PDF pada email outbox. Migrasi 006 menambahkan role
    `starter`/`front_desk`, catatan operasional booking, kesiapan layanan caddy/
-   buggy, audit tambahan, dan approval update kondisi lapangan;
-   `npm run db:migrate` menerapkan semua migrasi. Role `staff` lama otomatis
+   buggy, audit tambahan, dan approval update kondisi lapangan. Migrasi 007
+   menambahkan checkpoint marshal manual hole 9/18 dan soft-request caddy/
+   peralatan pada booking; `npm run db:migrate` menerapkan semua migrasi. Role `staff` lama otomatis
    dipetakan ke `front_desk`. Untuk notifikasi
    terjadwal, atur `NOTIFICATION_JOB_TOKEN` dengan secret acak yang panjang.
    Untuk email, atur `RESEND_API_KEY`, `EMAIL_FROM`, serta

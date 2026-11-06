@@ -26,6 +26,7 @@ export default function StaffConsole() {
   const [selected, setSelected] = useState([]);
   const [inquiries, setInquiries] = useState([]);
   const [adminReport, setAdminReport] = useState(null);
+  const [waitlistEntries, setWaitlistEntries] = useState([]);
   const [courseUpdates, setCourseUpdates] = useState([]);
   const [pendingCourseUpdates, setPendingCourseUpdates] = useState([]);
   const [auditEntries, setAuditEntries] = useState([]);
@@ -54,6 +55,12 @@ export default function StaffConsole() {
     apiRequest('/api/v1/course-updates')
       .then(setCourseUpdates)
       .catch((reason) => setError(reason.message));
+    if (role === 'admin' || role === 'front_desk') {
+      const waitlistQuery = new URLSearchParams({ date });
+      apiRequest(`/api/v1/staff/waitlist?${waitlistQuery}`)
+        .then((result) => setWaitlistEntries(result.entries))
+        .catch((reason) => setError(reason.message));
+    }
     if (role === 'admin') apiRequest('/api/v1/admin/inquiries?status=new')
       .then(setInquiries)
       .catch((reason) => setError(reason.message));
@@ -88,8 +95,8 @@ export default function StaffConsole() {
     setError('');
     setNotice('');
     try {
-      await action();
-      if (successMessage) setNotice(successMessage);
+      const result = await action();
+      if (successMessage) setNotice(typeof successMessage === 'function' ? successMessage(result) : successMessage);
       setReload((value) => value + 1);
     } catch (reason) { setError(reason.message); }
   }
@@ -98,7 +105,9 @@ export default function StaffConsole() {
     await run(() => apiRequest('/api/v1/admin/tee-sheet/blocks', {
       method: 'PUT',
       body: { courseId: 1, date, slotIds: selected, blocked, reason: blockReason },
-    }), blocked ? 'Selected slots blocked.' : 'Selected slots reopened.');
+    }), blocked
+      ? 'Selected slots blocked.'
+      : (result) => `Selected slots reopened. Waitlist offer processing ran for ${result.waitlistOffers.length} eligible slot(s).`);
     setSelected([]);
   }
 
@@ -275,6 +284,23 @@ export default function StaffConsole() {
             </ul>
           )}
         </div>
+        {['front_desk', 'admin'].includes(role) && (
+          <div className="mt-5 border-t border-[#C9A96E]/10 pt-4">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-[#C9A96E]">Exact-slot waitlist · {date}</h3>
+            <p className="mt-1 text-[0.65rem] text-[#F6F2EA]/45">Offers create a 10-minute hold. The player must claim the emailed link and complete booking; staff do not confirm it on their behalf.</p>
+            {waitlistEntries.length === 0 ? <p className="mt-2 text-sm text-[#F6F2EA]/45">No active waitlist entries for this date.</p> : (
+              <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                {waitlistEntries.map((entry) => (
+                  <li key={entry.id} className="rounded-lg border border-[#C9A96E]/10 p-3 text-xs">
+                    <div className="flex items-center justify-between gap-2"><strong>{entry.time} · {entry.name}</strong><span className="uppercase text-[#C9A96E]">{entry.status}</span></div>
+                    <p className="mt-1 text-[#F6F2EA]/60">{entry.players} player(s) · {entry.phone} · {entry.email}</p>
+                    {entry.claimExpiresAt && <p className="mt-1 text-[#F6F2EA]/45">Claim hold expires {new Date(entry.claimExpiresAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}.</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="mt-8 rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] p-5 sm:p-7">
@@ -306,7 +332,7 @@ export default function StaffConsole() {
             {sheet.slots.map((slot) => (
               <li key={slot.id} className={`rounded-xl border p-4 ${slot.status === 'blocked' ? 'border-red-300/30 bg-red-950/20' : 'border-[#C9A96E]/15 bg-[#0F2A20]/40'}`}>
                 <div className="flex items-start justify-between gap-3">
-                  <div><p className="font-[family-name:var(--font-heading)] text-2xl">{slot.time}</p><p className="mt-1 text-xs text-[#F6F2EA]/55">{slot.booked} booked · {slot.held} held · {slot.available} open</p></div>
+                  <div><p className="font-[family-name:var(--font-heading)] text-2xl">{slot.time}</p><p className="mt-1 text-xs text-[#F6F2EA]/55">{slot.booked} booked · {slot.held} held · {slot.available} open</p>{slot.waitlistCount > 0 && <p className="mt-1 text-xs text-[#C9A96E]">{slot.waitlistCount} active waitlist entr{slot.waitlistCount === 1 ? 'y' : 'ies'}</p>}</div>
                   {role === 'admin' && slot.booked === 0 && slot.held === 0 && <input type="checkbox" aria-label={`Select ${slot.time}`} checked={selectedSlots.has(slot.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, slot.id] : current.filter((id) => id !== slot.id))} />}
                   <span className="text-[0.6rem] uppercase tracking-[0.15em] text-[#C9A96E]">{slot.status}</span>
                 </div>

@@ -51,7 +51,13 @@ function ServiceControl({ booking, serviceType, readiness, onUpdate }) {
 export default function BookingOperationsPanel({ booking, onUpdate }) {
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
+  const [checkpointHole, setCheckpointHole] = useState(9);
+  const [checkpointNote, setCheckpointNote] = useState('');
+  const [checkpointError, setCheckpointError] = useState('');
   const readiness = booking.services || [];
+  const recordedHoles = (booking.marshalCheckpoints || []).map((checkpoint) => checkpoint.holeNumber);
+  const availableHoles = [9, 18].filter((hole) => !recordedHoles.includes(hole));
+  const selectedCheckpointHole = availableHoles.includes(checkpointHole) ? checkpointHole : availableHoles[0];
 
   async function addNote(event) {
     event.preventDefault();
@@ -68,10 +74,32 @@ export default function BookingOperationsPanel({ booking, onUpdate }) {
     }
   }
 
+  async function addCheckpoint(event) {
+    event.preventDefault();
+    setCheckpointError('');
+    try {
+      await apiRequest(`/api/v1/staff/bookings/${encodeURIComponent(booking.id)}/checkpoints`, {
+        method: 'POST',
+        body: { holeNumber: selectedCheckpointHole, note: checkpointNote },
+      });
+      setCheckpointNote('');
+      onUpdate();
+    } catch (reason) {
+      setCheckpointError(reason.message);
+    }
+  }
+
   return (
     <details className="mt-3 border-t border-[#C9A96E]/10 pt-3">
       <summary className="cursor-pointer text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[#C9A96E]">Operations & notes</summary>
       <div className="mt-3 space-y-3">
+        {(booking.serviceRequests?.preferredCaddy || booking.serviceRequests?.rentalNeeds) && (
+          <section aria-label="Player service requests" className="rounded-lg border border-[#C9A96E]/10 p-3">
+            <h3 className="text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-[#C9A96E]">Player requests · not guaranteed</h3>
+            {booking.serviceRequests.preferredCaddy && <p className="mt-2 text-xs">Preferred caddy: {booking.serviceRequests.preferredCaddy}</p>}
+            {booking.serviceRequests.rentalNeeds && <p className="mt-1 text-xs">Equipment: {booking.serviceRequests.rentalNeeds}</p>}
+          </section>
+        )}
         <form onSubmit={addNote}>
           <label className="block text-[0.65rem] text-[#F6F2EA]/55">
             Add staff-only note
@@ -89,6 +117,39 @@ export default function BookingOperationsPanel({ booking, onUpdate }) {
               </li>
             ))}
           </ul>
+        )}
+        {['checked_in', 'completed'].includes(booking.status) && (
+          <section className="rounded-lg border border-[#C9A96E]/10 p-3">
+            <h3 className="text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-[#C9A96E]">Marshal checkpoints · manual log only</h3>
+            {(booking.marshalCheckpoints || []).length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {booking.marshalCheckpoints.map((checkpoint) => (
+                  <li key={checkpoint.holeNumber} className="text-xs">
+                    Hole {checkpoint.holeNumber} · {new Date(checkpoint.observedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
+                    {checkpoint.recordedBy ? ` · ${checkpoint.recordedBy}` : ''}
+                    {checkpoint.note && <p className="mt-1 text-[#F6F2EA]/55">{checkpoint.note}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {availableHoles.length > 0 && (
+              <form onSubmit={addCheckpoint} className="mt-3 space-y-2">
+                <label className="block text-[0.65rem] text-[#F6F2EA]/55">
+                  Checkpoint
+                  <select value={selectedCheckpointHole} onChange={(event) => setCheckpointHole(Number(event.target.value))} className={fieldClass}>
+                    {availableHoles.map((hole) => <option key={hole} value={hole}>Hole {hole}</option>)}
+                  </select>
+                </label>
+                <label className="block text-[0.65rem] text-[#F6F2EA]/55">
+                  Optional note
+                  <input value={checkpointNote} onChange={(event) => setCheckpointNote(event.target.value)} maxLength={500} className={fieldClass} />
+                </label>
+                <button type="submit" className={buttonClass}>Record checkpoint</button>
+                {checkpointError && <p role="alert" className="text-xs text-red-200">{checkpointError}</p>}
+              </form>
+            )}
+            <p className="mt-2 text-[0.6rem] text-[#F6F2EA]/40">This records an observation only; it does not calculate pace or trigger penalties.</p>
+          </section>
         )}
         {booking.caddyCode && <ServiceControl booking={booking} serviceType="caddy" readiness={readiness} onUpdate={onUpdate} />}
         {booking.buggy && <ServiceControl booking={booking} serviceType="buggy" readiness={readiness} onUpdate={onUpdate} />}
