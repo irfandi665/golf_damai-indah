@@ -1,6 +1,6 @@
 # Spesifikasi API dan Database — Damai Indah Golf
 
-**Versi:** 1.3  
+**Versi:** 1.4
 **Status:** Spesifikasi untuk implementasi  
 **Tanggal:** 5 November 2026  
 **Audiens:** Backend, DevOps, QA, dan frontend
@@ -107,7 +107,7 @@ CREATE TABLE users (
   full_name text NOT NULL,
   password_hash text,
   role text NOT NULL DEFAULT 'member'
-    CHECK (role IN ('member', 'staff', 'admin')),
+    CHECK (role IN ('member', 'starter', 'front_desk', 'admin')),
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -762,21 +762,53 @@ boleh melalui proses verifikasi email dan tidak boleh menghasilkan earn ganda.
 
 ## 6. Staff, admin, dan pekerjaan terjadwal
 
+### Role operasional
+
+| Role | Izin |
+|---|---|
+| `starter` | Tee sheet, pencarian/check-in, penyelesaian ronde, catatan booking, kesiapan layanan, dan mengajukan update kondisi lapangan |
+| `front_desk` | Izin `starter`, laporan/ekspor harian, serta mencatat status pembayaran manual |
+| `admin` | Semua izin operasional, override kehadiran, blokir slot, persetujuan update lapangan, perubahan role, konfigurasi, dan audit |
+
+Akun ber-role `staff` yang sudah ada dimigrasikan menjadi `front_desk`.
+Perubahan role hanya dilakukan admin; admin tidak dapat mengubah role akunnya
+sendiri. Sembunyikan kontrol di UI bukan pengganti pemeriksaan role pada API.
+
 ### Endpoint operasional
 
 | Endpoint | Role | Aturan |
 |---|---|---|
-| `POST /api/v1/staff/check-in` | Staff | Verifikasi QR, booking `confirmed`, tanggal lokal hari ini; transisi ke `checked_in` |
-| `POST /api/v1/staff/tickets/validate` | Staff | Validasi QR e-ticket tanpa mengubah status kehadiran; mengembalikan valid/invalid, nama pemain, tee-off, status pembayaran, dan status kehadiran |
-| `POST /api/v1/staff/bookings/{id}/complete` | Staff | Selesaikan ronde; idempotently memicu earn, cashback, outbox |
-| `POST /api/v1/staff/rounds/{id}/verify` | Staff | Verifikasi skor/sumber, hitung ulang handicap dan tier |
-| `POST /api/v1/staff/vouchers/{code}/redeem` | Staff | Gunakan voucher aktif, kaitkan ke booking dalam transaksi |
-| `GET /api/v1/staff/tee-sheet?date=YYYY-MM-DD` | Staff | Lihat kapasitas, booking, hold dan status slot |
-| `GET /api/v1/staff/tee-sheet?date=YYYY-MM-DD&q=...` | Staff | Cari reference, nama, atau telepon; respons memuat ringkasan operasional harian |
-| `POST /api/v1/staff/bookings/{id}/check-in` | Staff + CSRF | Check-in berdasarkan booking yang ditemukan; hanya pada tanggal tee time |
-| `GET /api/v1/admin/bookings?date=YYYY-MM-DD&attendance=all|not_arrived|arrived&payment=all|unpaid|down_payment|paid&q=...` | Admin | Laporan reservasi harian dan filter kehadiran/pencatatan pembayaran |
+| `GET /api/v1/staff/session` | Starter/front desk/admin | Mengembalikan role sesi aktif |
+| `POST /api/v1/staff/check-in` | Starter/front desk/admin + CSRF | Verifikasi token QR dan check-in atomik; hanya booking aktif pada tanggal lokal tee time |
+| `POST /api/v1/staff/tickets/validate` | Starter/front desk/admin | Validasi tiket tanpa mengubah status kehadiran |
+| `POST /api/v1/staff/bookings/{id}/check-in` | Starter/front desk/admin + CSRF | Check-in manual berdasarkan ID; hanya pada tanggal tee time |
+| `POST /api/v1/staff/bookings/{id}/notes` | Starter/front desk/admin + CSRF | Tambahkan catatan operasional internal, 1–1000 karakter |
+| `PUT /api/v1/staff/bookings/{id}/services` | Starter/front desk/admin + CSRF | Catat penugasan/status `pending` atau `ready` untuk caddy/buggy yang dipesan |
+| `PATCH /api/v1/staff/bookings/{id}/payment` | Front desk/admin + CSRF | Catat `unpaid`, `down_payment`, atau `paid`; bukan bukti transaksi |
+| `POST /api/v1/staff/bookings/{id}/complete` | Starter/front desk/admin + CSRF | Selesaikan ronde; idempotently memicu earn, cashback, outbox |
+| `POST /api/v1/staff/rounds/{id}/verify` | Starter/front desk/admin + CSRF | Verifikasi skor/sumber, hitung ulang handicap dan tier |
+| `POST /api/v1/staff/vouchers/{code}/redeem` | Front desk/admin + CSRF | Gunakan voucher aktif, kaitkan ke booking dalam transaksi |
+| `GET /api/v1/staff/tee-sheet?date=YYYY-MM-DD&q=...` | Starter/front desk/admin | Cari reference, nama, atau telepon; tampilkan kapasitas, booking, hold, status, dan ringkasan harian |
+| `POST /api/v1/staff/course-updates` | Starter/front desk + CSRF | Ajukan perubahan kondisi lapangan berstatus pending; belum tampil publik |
+| `GET /api/v1/admin/bookings?date=YYYY-MM-DD&attendance=all|not_arrived|arrived&payment=all|unpaid|down_payment|paid&q=...` | Front desk/admin | Laporan reservasi harian; `format=csv` mengekspor rekap, termasuk status pembayaran manual |
 | `PATCH /api/v1/admin/bookings/{id}` | Admin + CSRF | Override `attendanceStatus` (`confirmed`/`checked_in`) dan/atau `paymentStatus`; mencatat audit dan `checkedInAt` |
-| `PUT /api/v1/admin/tee-sheet/blocks` | Admin | Blokir slot; konflik booking aktif memerlukan pemindahan eksplisit |
+| `PUT /api/v1/admin/tee-sheet/blocks` | Admin + CSRF | Blokir/buka slot dengan alasan; slot dengan booking atau hold aktif ditolak |
+| `GET /api/v1/admin/course-updates/pending` | Admin | Daftar usulan update lapangan yang menunggu persetujuan |
+| `POST /api/v1/admin/course-updates/{id}/approve` | Admin + CSRF | Setujui dan publikasikan usulan; antrekan notifikasi sesuai preferensi member |
+| `GET /api/v1/admin/staff?email=...` | Admin | Cari akun aktif berdasarkan email |
+| `PATCH /api/v1/admin/staff/{userId}` | Admin + CSRF | Ubah role ke `member`, `starter`, `front_desk`, atau `admin`; tidak dapat mengubah role sendiri |
+| `GET /api/v1/admin/audit?date=&action=&entityType=` | Admin | Filter audit berdasarkan tanggal Jakarta, aksi, dan tipe entitas (maksimum 200) |
+| `PUT /api/v1/admin/rate-cards` | Admin + CSRF | Ubah tarif untuk booking baru; validasi overlap |
+| `PUT /api/v1/admin/service-items` | Admin + CSRF | Kelola harga/layanan aktif untuk booking baru |
+| `POST /api/v1/admin/course-updates` | Admin + CSRF | Publikasikan status operasional lapangan |
+| `POST /api/v1/admin/announcements` | Admin + CSRF | Publikasikan pengumuman in-app member |
+| `GET/PATCH /api/v1/admin/inquiries[/{id}]` | Admin | Tinjau inquiry dan ubah status tindak lanjut |
+| `GET /api/v1/admin/email-outbox` | Admin | Pantau status pengiriman email |
+| `POST /api/v1/admin/email-outbox/process` | Admin + CSRF | Coba kirim ulang pesan email tertunda |
+
+Migrasi `006_staff_operations.sql` menambahkan role operasional baru, catatan
+booking, status kesiapan layanan, serta alur approval update kondisi lapangan.
+Seluruh perubahan operasional penting ditulis ke `audit_log`.
 | `PUT /api/v1/admin/rate-cards` | Admin | Ubah tarif untuk booking baru; validasi overlap |
 | `PUT /api/v1/admin/service-items` | Admin | Kelola harga/layanan aktif untuk booking baru |
 | `POST /api/v1/admin/course-updates` | Admin | Publikasikan status operasional lapangan |

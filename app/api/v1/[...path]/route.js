@@ -38,15 +38,21 @@ import {
 } from '@/lib/server/auth-service';
 import {
   blockTeeSlots,
+  addBookingOperationalNote,
   checkInBooking,
   checkInBookingById,
   completeBooking,
+  getAdminAuditLog,
   getTeeSheet,
   getAdminBookingReport,
   makeBookingQr,
   redeemVoucher,
+  searchStaffAccounts,
   validateBookingTicket,
   updateAdminBooking,
+  updateBookingServiceReadiness,
+  updateStaffPaymentStatus,
+  updateStaffRole,
   updateRateCard,
   updateServiceItem,
   verifyRound,
@@ -57,10 +63,13 @@ import {
   createEventInterestEmail,
   createPublicInquiry,
   deactivateCourseUpdate,
+  approveCourseUpdate,
   getPublicPricing,
   listAnnouncements,
   listCourseUpdates,
   listInquiries,
+  listPendingCourseUpdates,
+  submitCourseUpdateProposal,
   updateInquiryStatus,
 } from '@/lib/server/public-service';
 import { getEmailOutboxStatus, processEmailOutbox, queueEmail } from '@/lib/server/email-service';
@@ -105,6 +114,12 @@ async function requestBody(request) {
 
 function requireIdempotencyKey(request) {
   return request.headers.get('idempotency-key');
+}
+
+function csvCell(value) {
+  let text = value === null || value === undefined ? '' : String(value);
+  if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 async function memberSession(request, csrf = false) {
@@ -378,39 +393,57 @@ async function dispatch(request, segments) {
 
   if (resource === 'staff' && subresource === 'check-in' && method === 'POST') {
     const session = await getSession(request, { required: true, csrf: true });
-    await requireRole(session, ['staff', 'admin']);
+    await requireRole(session, ['starter', 'front_desk', 'admin']);
     const body = await requestBody(request);
     return json(await checkInBooking({ staffId: session.userId, qrToken: body.qrToken }));
   }
 
   if (resource === 'staff' && subresource === 'tickets' && identifier === 'validate' && method === 'POST') {
     const session = await getSession(request, { required: true });
-    await requireRole(session, ['staff', 'admin']);
+    await requireRole(session, ['starter', 'front_desk', 'admin']);
     const body = await requestBody(request);
     return json(await validateBookingTicket({ qrToken: body.qrToken }));
   }
 
   if (resource === 'staff' && subresource === 'bookings' && identifier && action === 'check-in' && method === 'POST') {
     const session = await getSession(request, { required: true, csrf: true });
-    await requireRole(session, ['staff', 'admin']);
+    await requireRole(session, ['starter', 'front_desk', 'admin']);
     return json(await checkInBookingById({ staffId: session.userId, bookingId: identifier }));
+  }
+
+  if (resource === 'staff' && subresource === 'bookings' && identifier && action === 'notes' && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['starter', 'front_desk', 'admin']);
+    return json(await addBookingOperationalNote({ staffId: session.userId, bookingId: identifier, note: (await requestBody(request)).note }), 201);
+  }
+
+  if (resource === 'staff' && subresource === 'bookings' && identifier && action === 'services' && method === 'PUT') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['starter', 'front_desk', 'admin']);
+    return json(await updateBookingServiceReadiness({ staffId: session.userId, bookingId: identifier, ...(await requestBody(request)) }));
+  }
+
+  if (resource === 'staff' && subresource === 'bookings' && identifier && action === 'payment' && method === 'PATCH') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['front_desk', 'admin']);
+    return json(await updateStaffPaymentStatus({ staffId: session.userId, bookingId: identifier, paymentStatus: (await requestBody(request)).paymentStatus }));
   }
 
   if (resource === 'staff' && subresource === 'session' && method === 'GET') {
     const session = await getSession(request, { required: true });
-    await requireRole(session, ['staff', 'admin']);
-    return json({ role: session.role });
+    await requireRole(session, ['starter', 'front_desk', 'admin']);
+    return json({ role: session.role, userId: session.userId });
   }
 
   if (resource === 'staff' && subresource === 'bookings' && identifier && action === 'complete' && method === 'POST') {
     const session = await getSession(request, { required: true, csrf: true });
-    await requireRole(session, ['staff', 'admin']);
+    await requireRole(session, ['starter', 'front_desk', 'admin']);
     return json(await completeBooking({ staffId: session.userId, bookingId: identifier }));
   }
 
   if (resource === 'staff' && subresource === 'tee-sheet' && method === 'GET') {
     const session = await getSession(request, { required: true });
-    await requireRole(session, ['staff', 'admin']);
+    await requireRole(session, ['starter', 'front_desk', 'admin']);
     return json(await getTeeSheet({
       date: url.searchParams.get('date'),
       courseId: Number(url.searchParams.get('courseId') || 1),
@@ -420,13 +453,13 @@ async function dispatch(request, segments) {
 
   if (resource === 'staff' && subresource === 'rounds' && identifier && action === 'verify' && method === 'POST') {
     const session = await getSession(request, { required: true, csrf: true });
-    await requireRole(session, ['staff', 'admin']);
+    await requireRole(session, ['starter', 'front_desk', 'admin']);
     return json(await verifyRound({ staffId: session.userId, roundId: identifier, source: (await requestBody(request)).source }));
   }
 
   if (resource === 'staff' && subresource === 'vouchers' && identifier && action === 'redeem' && method === 'POST') {
     const session = await getSession(request, { required: true, csrf: true });
-    await requireRole(session, ['staff', 'admin']);
+    await requireRole(session, ['front_desk', 'admin']);
     return json(await redeemVoucher({ staffId: session.userId, code: identifier, bookingId: (await requestBody(request)).bookingId }));
   }
 
@@ -463,6 +496,26 @@ async function dispatch(request, segments) {
     return json(await updateInquiryStatus({ adminId: session.userId, inquiryId: identifier, status: (await requestBody(request)).status }));
   }
 
+  if (resource === 'staff' && subresource === 'course-updates' && !identifier && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['starter', 'front_desk']);
+    return json(await submitCourseUpdateProposal({ staffId: session.userId, body: await requestBody(request) }), 201);
+  }
+
+  if (resource === 'admin' && subresource === 'course-updates' && identifier === 'pending' && method === 'GET') {
+    const session = await getSession(request, { required: true });
+    await requireRole(session, ['admin']);
+    return json(await listPendingCourseUpdates());
+  }
+
+  if (resource === 'admin' && subresource === 'course-updates' && identifier && action === 'approve' && method === 'POST') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['admin']);
+    const update = await approveCourseUpdate({ adminId: session.userId, updateId: identifier });
+    const notifications = await queueCourseUpdateNotifications(update);
+    return json({ ...update, emailNotificationsQueued: notifications.queued });
+  }
+
   if (resource === 'admin' && subresource === 'course-updates' && !identifier && method === 'POST') {
     const session = await getSession(request, { required: true, csrf: true });
     await requireRole(session, ['admin']);
@@ -497,13 +550,51 @@ async function dispatch(request, segments) {
 
   if (resource === 'admin' && subresource === 'bookings' && !identifier && method === 'GET') {
     const session = await getSession(request, { required: true });
-    await requireRole(session, ['admin']);
-    return json(await getAdminBookingReport({
+    await requireRole(session, ['front_desk', 'admin']);
+    const report = await getAdminBookingReport({
       date: url.searchParams.get('date'),
       attendance: url.searchParams.get('attendance') || 'all',
       payment: url.searchParams.get('payment') || 'all',
       search: url.searchParams.get('q') || '',
+    });
+    if (url.searchParams.get('format') === 'csv') {
+      const headings = ['Date', 'Tee time', 'Reference', 'Player', 'Phone', 'Players', 'Tee box', 'Package', 'Attendance', 'Manual payment status', 'Checked in at', 'Total IDR'];
+      const rows = report.bookings.map((booking) => [
+        report.date, booking.teeTime, booking.reference, booking.guestName, booking.guestPhone,
+        booking.players, booking.teeBox, booking.packageType, booking.attendanceStatus,
+        booking.paymentStatus, booking.checkedInAt || '', booking.total,
+      ]);
+      return new Response([headings, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n'), {
+        headers: {
+          'content-type': 'text/csv; charset=utf-8',
+          'content-disposition': `attachment; filename="tee-sheet-${report.date}.csv"`,
+          'cache-control': 'no-store',
+        },
+      });
+    }
+    return json(report);
+  }
+
+  if (resource === 'admin' && subresource === 'audit' && !identifier && method === 'GET') {
+    const session = await getSession(request, { required: true });
+    await requireRole(session, ['admin']);
+    return json(await getAdminAuditLog({
+      date: url.searchParams.get('date') || '',
+      action: url.searchParams.get('action') || '',
+      entityType: url.searchParams.get('entityType') || '',
     }));
+  }
+
+  if (resource === 'admin' && subresource === 'staff' && !identifier && method === 'GET') {
+    const session = await getSession(request, { required: true });
+    await requireRole(session, ['admin']);
+    return json(await searchStaffAccounts({ email: url.searchParams.get('email') || '' }));
+  }
+
+  if (resource === 'admin' && subresource === 'staff' && identifier && method === 'PATCH') {
+    const session = await getSession(request, { required: true, csrf: true });
+    await requireRole(session, ['admin']);
+    return json(await updateStaffRole({ adminId: session.userId, userId: identifier, role: (await requestBody(request)).role }));
   }
 
   if (resource === 'admin' && subresource === 'bookings' && identifier && method === 'PATCH') {

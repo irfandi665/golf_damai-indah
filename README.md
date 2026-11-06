@@ -174,6 +174,8 @@ atau database yang berisi data penting**. Variabel `APP_ORIGIN`,
 `DATABASE_URL`, dan `REDIS_URL` harus mengarah ke layanan lokal. Untuk detail
 tentang layanan, migrasi, serta batas kesiapan production, lihat
 [panduan backend](./docs/backend-api-setup.md).
+Untuk panduan deployment hosting, ikuti
+[tutorial deploy ke Vercel](./docs/vercel-deployment.md).
 
 ## Fitur dan batasan penting
 
@@ -185,8 +187,10 @@ tentang layanan, migrasi, serta batas kesiapan production, lihat
   waktu booking asal.
 - Member dapat mengatur persetujuan email, pengingat tee time 24/3 jam, dan
   update lapangan langsung atau harian.
-- Tee sheet staf menyediakan pencarian booking, check-in berdasarkan booking,
-  kapasitas, serta ringkasan operasional harian.
+- Role `starter`, `front_desk`, dan `admin` memiliki akses operasional bertingkat
+  pada `/staff`: tee sheet, pencarian/check-in, catatan booking, kesiapan
+  caddy/buggy, laporan harian, ekspor CSV, serta pengajuan/persetujuan kondisi
+  lapangan. Akun `staff` lama dipetakan ke `front_desk` oleh migrasi.
 - Email konfirmasi booking menyertakan QR check-in dan PDF e-ticket. Staf
   dapat memindai QR atau memasukkan token pada `/staff`; akses kamera browser
   memerlukan localhost atau HTTPS.
@@ -194,7 +198,10 @@ tentang layanan, migrasi, serta batas kesiapan production, lihat
   pembayaran, serta melakukan override yang tercatat di audit log. Status
   `unpaid`, `down_payment`, dan `paid` hanya pencatatan operasional—semua
   pembayaran tetap berlangsung di lokasi dan tidak diproses aplikasi.
-- Panel `/staff` hanya dapat diakses akun yang telah diberi role staff/admin.
+- Hanya admin dapat memblokir slot, melakukan override kehadiran, mengubah
+  role, menyetujui update kondisi lapangan, dan melihat audit log.
+- Catatan pembayaran `unpaid`, `down_payment`, dan `paid` hanya data operasional;
+  seluruh pembayaran tetap dilakukan di lokasi dan tidak diproses aplikasi.
 - Verifikasi nomor telepon belum aktif karena provider SMS/OTP belum
   dikonfigurasi.
 - Event dan Academy menerima inquiry; formulirnya bukan pendaftaran atau
@@ -224,3 +231,11 @@ tentang layanan, migrasi, serta batas kesiapan production, lihat
   mengaktifkan `pgcrypto` dan `citext` jika user tidak memiliki izin.
 - **Port 3000 sudah digunakan:** hentikan server lain atau jalankan
   `npm run dev -- --port 3001`, lalu buka `http://localhost:3001`.
+
+## Deploy ke Vercel
+
+Ikuti [tutorial deploy Vercel langkah demi langkah](./docs/vercel-deployment.md).
+Siapkan PostgreSQL dan Redis production, environment variables rahasia di
+dashboard Vercel, migrasi database, konfigurasi domain/email, dan scheduler
+eksternal untuk job notifikasi. Jangan gunakan database production untuk tes
+integrasi.

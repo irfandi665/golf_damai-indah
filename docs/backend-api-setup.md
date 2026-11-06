@@ -5,8 +5,9 @@
 Aplikasi ini hanya menangani reservasi tee time, harga booking, dan fitur
 member. Semua pembayaran dilakukan langsung di lokasi klub. Tidak ada
 checkout, payment gateway, pencatatan metode pembayaran, atau konfirmasi
-penerimaan uang melalui aplikasi. Staf menyelesaikan transaksi menggunakan
-proses kasir di lokasi.
+penerimaan uang melalui aplikasi. Front desk/admin dapat mencatat status
+operasional `unpaid`, `down_payment`, atau `paid`; status tersebut bukan bukti
+transaksi. Staf menyelesaikan transaksi menggunakan proses kasir di lokasi.
 
 ## Prasyarat
 
@@ -35,8 +36,11 @@ sebaiknya menggunakan Redis terkelola dengan autentikasi dan TLS.
    `REDIS_URL`, `APP_ORIGIN`, `HOLD_IP_HASH_SECRET`, dan
    `QR_SIGNING_SECRET` (diperlukan untuk alur QR/check-in). Migrasi 005
    menambahkan pilihan tee box, paket, pencatatan pembayaran, token e-ticket,
-   serta HTML/lampiran PDF pada email outbox; `npm run db:migrate` menerapkan
-   migrasi tersebut bersama migrasi lain. Untuk notifikasi
+   serta HTML/lampiran PDF pada email outbox. Migrasi 006 menambahkan role
+   `starter`/`front_desk`, catatan operasional booking, kesiapan layanan caddy/
+   buggy, audit tambahan, dan approval update kondisi lapangan;
+   `npm run db:migrate` menerapkan semua migrasi. Role `staff` lama otomatis
+   dipetakan ke `front_desk`. Untuk notifikasi
    terjadwal, atur `NOTIFICATION_JOB_TOKEN` dengan secret acak yang panjang.
    Untuk email, atur `RESEND_API_KEY`, `EMAIL_FROM`, serta
    `CLUB_CONTACT_EMAIL`. Gunakan
@@ -91,8 +95,9 @@ sebaiknya menggunakan Redis terkelola dengan autentikasi dan TLS.
 
 Tes integrasi membuat member dan booking sementara melalui API lokal, menguji
 retry idempotency, reschedule, waitlist/claim, preferensi notifikasi,
-tee-sheet search, e-ticket/check-in, laporan admin, override audit, serta rate
-limit Redis, lalu menghapus data tes yang dibuat.
+tee-sheet search, catatan dan kesiapan layanan, batas akses role operasional,
+approval update kondisi lapangan, e-ticket/check-in, laporan/ekspor CSV,
+override audit, serta rate limit Redis, lalu menghapus data tes yang dibuat.
 Gunakan database `golf` lokal atau database lokal dengan akhiran `_test`, dan
 pastikan database tersebut bukan production. Tanggal tee time tes dipilih jauh
 di masa depan; slot yang dibuat khusus oleh tes dibersihkan setelahnya.
@@ -125,12 +130,13 @@ booking hanya dicari serta divalidasi server; token tidak memuat PII.
 atau validasi tidak otomatis check-in; staf mengonfirmasi melalui tombol
 check-in agar status dan timestamp tercatat.
 
-Halaman `/staff` tersedia bagi role `staff` dan `admin`. Admin memiliki laporan
-harian dengan filter kehadiran/pencatatan pembayaran dan dapat mengubah status
-kehadiran secara manual. Status pembayaran yang tersedia (`unpaid`,
-`down_payment`, `paid`) adalah catatan staf/admin saja; aplikasi tidak menerima
-atau memproses uang. Kamera pada browser memerlukan izin pengguna dan origin
-yang aman (HTTPS atau localhost).
+Halaman `/staff` tersedia bagi role `starter`, `front_desk`, dan `admin`.
+Starter mengelola tee sheet, check-in, catatan dan kesiapan layanan; front
+desk juga melihat/mengekspor laporan dan mencatat status pembayaran manual;
+admin juga dapat melakukan override, blokir slot, mengelola role, menyetujui
+update kondisi lapangan, serta melihat audit. Status pembayaran (`unpaid`,
+`down_payment`, `paid`) bukan bukti transaksi. Kamera pada browser memerlukan
+izin pengguna dan origin yang aman (HTTPS atau localhost).
 
 Migrasi `002_onsite_payment_only.sql` mengubah booking lama yang masih menunggu
 pembayaran menjadi reservasi terkonfirmasi dan menghapus expiry pembayaran.

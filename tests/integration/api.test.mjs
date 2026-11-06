@@ -28,6 +28,7 @@ const cookieJar = new Map();
 const sessionTokens = new Set();
 const createdSlotIds = new Set();
 const createdInquiryIds = new Set();
+const createdCourseUpdateIds = new Set();
 const testDates = new Set();
 function testIpAddress() {
   const hex = randomUUID().replaceAll('-', '').slice(0, 4);
@@ -205,11 +206,18 @@ async function cleanup() {
       );
     }
     if (userId) {
+      if (createdCourseUpdateIds.size) {
+        await client.query(
+          'DELETE FROM email_outbox WHERE dedupe_key LIKE ANY($1::text[])',
+          [[...createdCourseUpdateIds].map((id) => `course-update:${id}:%`)],
+        );
+      }
       await client.query(
         'DELETE FROM email_outbox WHERE dedupe_key LIKE ANY($1::text[])',
         [[`verify-email:${userId}:%`, `reset-password:${userId}:%`]],
       );
       await client.query('DELETE FROM idempotency_keys WHERE scope LIKE $1', [`${userId}:%`]);
+      await client.query('DELETE FROM course_updates WHERE created_by=$1 OR approved_by=$1', [userId]);
       await client.query('DELETE FROM member_balances WHERE user_id = $1', [userId]);
       await client.query('DELETE FROM members WHERE user_id = $1', [userId]);
       await client.query('DELETE FROM audit_log WHERE actor_user_id = $1', [userId]);
@@ -428,7 +436,7 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       const response = await apiRequest('/api/v1/quotes', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ holdId: hold.holdId, buggy: false, extras: {} }),
+        body: JSON.stringify({ holdId: hold.holdId, caddy: 'standard', buggy: false, extras: {} }),
       });
       await expectStatus(response, 200);
       quote = await responseJson(response);
@@ -441,6 +449,7 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       holdId: hold.holdId,
       termsAccepted: true,
       guest: { name: 'Integration Test', phone: '081234567890', email: `integration-booking-${randomUUID()}@example.test` },
+      caddy: 'standard',
       buggy: false,
       teeBox: 'Tee 10',
       extras: {},
@@ -626,7 +635,14 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
     });
 
     await t.test('staff tee sheet supports search and daily operational summary', async () => {
-      await pool.query("UPDATE users SET role='staff' WHERE id=$1", [userId]);
+      await pool.query("UPDATE users SET role='starter' WHERE id=$1", [userId]);
+      const forbiddenReport = await apiRequest(`/api/v1/admin/bookings?date=${testDate}`);
+      assert.equal(forbiddenReport.status, 403);
+      const forbiddenBlock = await apiRequest('/api/v1/admin/tee-sheet/blocks', {
+        method: 'PUT',
+        body: { courseId: 1, date: testDate, slotIds: [selectedSlot.slotId], blocked: true },
+      });
+      assert.equal(forbiddenBlock.status, 403);
       const query = new URLSearchParams({ date: testDate, q: booking.reference });
       const response = await apiRequest(`/api/v1/staff/tee-sheet?${query}`);
       await expectStatus(response, 200);
@@ -635,6 +651,79 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       assert.ok(sheet.summary.capacity > 0);
       const matched = sheet.slots.flatMap((slot) => slot.bookings).find((item) => item.reference === booking.reference);
       assert.ok(matched, 'Expected the tee sheet search to return the matching booking.');
+      assert.equal(matched.services.length, 0);
+      assert.equal(matched.notes.length, 0);
+
+      const noteResponse = await apiRequest(`/api/v1/staff/bookings/${bookingId}/notes`, {
+        method: 'POST',
+        body: { note: 'Integration operational note.' },
+      });
+      await expectStatus(noteResponse, 201);
+
+      const readinessResponse = await apiRequest(`/api/v1/staff/bookings/${bookingId}/services`, {
+        method: 'PUT',
+        body: { serviceType: 'caddy', status: 'ready', assignedTo: 'Caddy Test', note: 'Ready for starter.' },
+      });
+      await expectStatus(readinessResponse, 200);
+      assert.equal((await responseJson(readinessResponse)).status, 'ready');
+
+      const forbiddenPayment = await apiRequest(`/api/v1/staff/bookings/${bookingId}/payment`, {
+        method: 'PATCH',
+        body: { paymentStatus: 'paid' },
+      });
+      assert.equal(forbiddenPayment.status, 403);
+
+      const notice = await apiRequest('/api/v1/staff/course-updates', {
+        method: 'POST',
+        body: { title: 'Integration notice', message: 'Temporary operational notice for integration testing.', severity: 'info' },
+      });
+      await expectStatus(notice, 201);
+      const proposal = await responseJson(notice);
+      createdCourseUpdateIds.add(proposal.id);
+      assert.equal(proposal.approval_status, 'pending');
+
+      const publicUpdates = await apiRequest('/api/v1/course-updates');
+      assert.ok(!(await responseJson(publicUpdates)).some((item) => item.id === proposal.id));
+
+      await pool.query("UPDATE users SET role='admin' WHERE id=$1", [userId]);
+      const selfRoleChange = await apiRequest(`/api/v1/admin/staff/${userId}`, {
+        method: 'PATCH',
+        body: { role: 'member' },
+      });
+      assert.equal(selfRoleChange.status, 422);
+      const occupiedBlock = await apiRequest('/api/v1/admin/tee-sheet/blocks', {
+        method: 'PUT',
+        body: { courseId: 1, date: testDate, slotIds: [rescheduleSlot.slotId], blocked: true, reason: 'Integration conflict check' },
+      });
+      assert.equal(occupiedBlock.status, 409);
+      const approval = await apiRequest(`/api/v1/admin/course-updates/${proposal.id}/approve`, { method: 'POST', body: {} });
+      await expectStatus(approval, 200);
+      assert.equal((await responseJson(approval)).approval_status, 'approved');
+      const auditDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+      const audit = await apiRequest(`/api/v1/admin/audit?date=${auditDate}&entityType=course_update&action=course_update`);
+      await expectStatus(audit, 200);
+      assert.ok((await responseJson(audit)).entries.some((entry) => entry.entityId === proposal.id));
+
+      await pool.query("UPDATE users SET role='front_desk' WHERE id=$1", [userId]);
+      const forbiddenOverride = await apiRequest(`/api/v1/admin/bookings/${bookingId}`, {
+        method: 'PATCH',
+        body: { attendanceStatus: 'checked_in' },
+      });
+      assert.equal(forbiddenOverride.status, 403);
+      const paymentResponse = await apiRequest(`/api/v1/staff/bookings/${bookingId}/payment`, {
+        method: 'PATCH',
+        body: { paymentStatus: 'down_payment' },
+      });
+      await expectStatus(paymentResponse, 200);
+      assert.equal((await responseJson(paymentResponse)).payment_status, 'down_payment');
+      const report = await apiRequest(`/api/v1/admin/bookings?date=${testDate}&format=csv`);
+      await expectStatus(report, 200);
+      assert.match(await report.text(), /Manual payment status/);
+      await apiRequest(`/api/v1/staff/bookings/${bookingId}/payment`, {
+        method: 'PATCH',
+        body: { paymentStatus: 'unpaid' },
+      });
+
       await pool.query("UPDATE users SET role='member' WHERE id=$1", [userId]);
     });
 
@@ -646,12 +735,13 @@ test('booking API and Redis rate limiting work end-to-end', async (t) => {
       assert.equal(body.paymentMode, 'pay_at_club');
       assert.equal(body.teeBox, 'Tee 10');
       assert.equal(body.paymentStatus, 'unpaid');
-      assert.equal(body.packageType, 'Weekend');
+      const expectedPackage = [0, 6].includes(new Date(`${testDate}T00:00:00.000Z`).getUTCDay()) ? 'Weekend' : 'Weekday';
+      assert.equal(body.packageType, expectedPackage);
       assert.equal(body.status, 'confirmed');
     });
 
     await t.test('validates the opaque e-ticket and reports its booking details', async () => {
-      await pool.query("UPDATE users SET role='staff' WHERE id=$1", [userId]);
+      await pool.query("UPDATE users SET role='starter' WHERE id=$1", [userId]);
       const token = createHmac('sha256', process.env.QR_SIGNING_SECRET)
         .update(`booking-ticket:v1:${bookingId}`)
         .digest('base64url');
