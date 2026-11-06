@@ -12,9 +12,9 @@ import {
   startOfMonth,
   toDateKey,
 } from '@/lib/booking/utils';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const monthFormat = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+const WEEKDAYS = { en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], id: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'] };
 
 function ChevronIcon({ direction }) {
   return (
@@ -34,6 +34,8 @@ function ChevronIcon({ direction }) {
 }
 
 export default function DatePicker({ selectedKey, onSelect, today }) {
+  const { locale, text } = useLocale();
+  const monthFormat = new Intl.DateTimeFormat(locale === 'id' ? 'id-ID' : 'en-GB', { month: 'long', year: 'numeric' });
   const { minDate, maxDate } = useMemo(() => {
     const min = startOfDay(today);
     return { minDate: min, maxDate: addDays(min, BOOKING_WINDOW_DAYS) };
@@ -91,7 +93,7 @@ export default function DatePicker({ selectedKey, onSelect, today }) {
           type="button"
           onClick={() => setViewMonth((current) => addMonths(current, -1))}
           disabled={!canGoPrev}
-          aria-label="Bulan sebelumnya"
+          aria-label={text('Previous month', 'Bulan sebelumnya')}
           className="flex h-10 w-10 items-center justify-center rounded-full border border-[#C9A96E]/30 text-[#C9A96E] transition-colors hover:border-[#C9A96E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] disabled:cursor-not-allowed disabled:opacity-25"
         >
           <ChevronIcon direction="left" />
@@ -108,7 +110,7 @@ export default function DatePicker({ selectedKey, onSelect, today }) {
           type="button"
           onClick={() => setViewMonth((current) => addMonths(current, 1))}
           disabled={!canGoNext}
-          aria-label="Bulan berikutnya"
+          aria-label={text('Next month', 'Bulan berikutnya')}
           className="flex h-10 w-10 items-center justify-center rounded-full border border-[#C9A96E]/30 text-[#C9A96E] transition-colors hover:border-[#C9A96E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] disabled:cursor-not-allowed disabled:opacity-25"
         >
           <ChevronIcon direction="right" />
@@ -116,7 +118,7 @@ export default function DatePicker({ selectedKey, onSelect, today }) {
       </div>
 
       <div className="grid grid-cols-7 gap-y-1 pb-3" aria-hidden="true">
-        {WEEKDAYS.map((weekday) => (
+        {WEEKDAYS[locale].map((weekday) => (
           <span
             key={weekday}
             className="text-center text-[0.65rem] font-medium uppercase tracking-[0.2em] text-[#F6F2EA]/45"
@@ -129,7 +131,7 @@ export default function DatePicker({ selectedKey, onSelect, today }) {
       <div
         ref={gridRef}
         role="group"
-        aria-label={`Pilih tanggal, ${monthFormat.format(viewMonth)}`}
+        aria-label={`${text('Choose a date', 'Pilih tanggal')}, ${monthFormat.format(viewMonth)}`}
         onKeyDown={handleKeyDown}
         className="grid grid-cols-7 gap-1"
       >
@@ -153,8 +155,8 @@ export default function DatePicker({ selectedKey, onSelect, today }) {
               tabIndex={item.key === focusKey ? 0 : -1}
               aria-disabled={item.disabled}
               aria-pressed={selected}
-              aria-label={`${formatLongDate(item.key)}${item.premium ? ', tarif weekend atau libur' : ''}${
-                item.disabled ? ', tidak tersedia' : ''
+              aria-label={`${formatLongDate(item.key, locale)}${item.premium ? `, ${text('weekend or holiday rate', 'tarif akhir pekan atau hari libur')}` : ''}${
+                item.disabled ? `, ${text('unavailable', 'tidak tersedia')}` : ''
               }`}
               onClick={() => {
                 if (!item.disabled) onSelect(item.key);
@@ -179,7 +181,7 @@ export default function DatePicker({ selectedKey, onSelect, today }) {
 
       <p className="mt-5 flex items-center gap-2 text-xs text-[#F6F2EA]/55">
         <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#C9A96E]" />
-        Weekend and holiday rates apply. Booking opens {BOOKING_WINDOW_DAYS} days ahead.
+        {text(`Weekend and holiday rates apply. Booking opens ${BOOKING_WINDOW_DAYS} days ahead.`, `Tarif akhir pekan dan hari libur berlaku. Booking dibuka ${BOOKING_WINDOW_DAYS} hari sebelumnya.`)}
       </p>
     </div>
   );

@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/api-client';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 const fieldClass = 'mt-2 rounded-xl border border-[#C9A96E]/25 bg-[#0F2A20] px-3 py-2.5 text-sm text-[#F6F2EA] focus:border-[#C9A96E] focus:outline-none';
 
 export default function NotificationPreferences() {
+  const { text } = useLocale();
   const [preferences, setPreferences] = useState(null);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -31,7 +33,7 @@ export default function NotificationPreferences() {
         method: 'PATCH',
         body: preferences,
       }));
-      setNotice('Notification preferences saved.');
+      setNotice(text('Notification preferences saved.', 'Preferensi notifikasi tersimpan.'));
     } catch (reason) {
       setError(reason.message);
     } finally {
@@ -42,30 +44,30 @@ export default function NotificationPreferences() {
   return (
     <form onSubmit={save} className="space-y-4 rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] p-6">
       <div>
-        <h2 className="font-[family-name:var(--font-heading)] text-2xl">Email notifications</h2>
-        <p className="mt-2 text-xs leading-relaxed text-[#F6F2EA]/50">Booking confirmations and cancellation receipts are transactional. These preferences control optional tee-time reminders and course updates. Delivery requires the club email provider to be configured.</p>
+        <h2 className="font-[family-name:var(--font-heading)] text-2xl">{text('Email notifications', 'Notifikasi email')}</h2>
+        <p className="mt-2 text-xs leading-relaxed text-[#F6F2EA]/50">{text('Booking confirmations and cancellation receipts are transactional. These preferences control optional tee-time reminders and course updates. Delivery requires the club email provider to be configured.', 'Konfirmasi booking dan bukti pembatalan bersifat transaksional. Preferensi ini mengatur pengingat tee time dan update course opsional. Pengiriman memerlukan konfigurasi penyedia email klub.')}</p>
       </div>
-      {!preferences ? <p role={error ? 'alert' : 'status'} className="text-sm text-[#F6F2EA]/55">{error || 'Loading preferences…'}</p> : (
+      {!preferences ? <p role={error ? 'alert' : 'status'} className="text-sm text-[#F6F2EA]/55">{error || text('Loading preferences…', 'Memuat preferensi…')}</p> : (
         <>
           <label className="flex items-start gap-3 text-sm text-[#F6F2EA]/75">
             <input type="checkbox" checked={preferences.emailConsent} onChange={(event) => update('emailConsent', event.target.checked)} className="mt-1 accent-[#C9A96E]" />
-            <span>I consent to receive optional email notifications and understand I can withdraw consent here.</span>
+            <span>{text('I consent to receive optional email notifications and understand I can withdraw consent here.', 'Saya setuju menerima notifikasi email opsional dan memahami bahwa persetujuan dapat dibatalkan di sini.')}</span>
           </label>
           <label className="flex items-start gap-3 text-sm text-[#F6F2EA]/75">
             <input type="checkbox" checked={preferences.teeTimeReminders} onChange={(event) => update('teeTimeReminders', event.target.checked)} className="mt-1 accent-[#C9A96E]" />
-            <span>Tee-time reminders</span>
+            <span>{text('Tee-time reminders', 'Pengingat tee time')}</span>
           </label>
           <label className="flex items-start gap-3 text-sm text-[#F6F2EA]/75">
             <input type="checkbox" checked={preferences.courseUpdates} onChange={(event) => update('courseUpdates', event.target.checked)} className="mt-1 accent-[#C9A96E]" />
-            <span>Course condition and operational updates</span>
+            <span>{text('Course condition and operational updates', 'Update kondisi course dan operasional')}</span>
           </label>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-xs text-[#F6F2EA]/60">Reminder timing<select value={preferences.reminderHours} onChange={(event) => update('reminderHours', Number(event.target.value))} className={`${fieldClass} block w-full`}><option value={24}>24 hours before</option><option value={3}>3 hours before</option></select></label>
-            <label className="text-xs text-[#F6F2EA]/60">Course updates<select value={preferences.digestFrequency} onChange={(event) => update('digestFrequency', event.target.value)} className={`${fieldClass} block w-full`}><option value="immediate">As they are published</option><option value="daily">Daily digest</option></select></label>
+            <label className="text-xs text-[#F6F2EA]/60">{text('Reminder timing', 'Waktu pengingat')}<select value={preferences.reminderHours} onChange={(event) => update('reminderHours', Number(event.target.value))} className={`${fieldClass} block w-full`}><option value={24}>{text('24 hours before', '24 jam sebelumnya')}</option><option value={3}>{text('3 hours before', '3 jam sebelumnya')}</option></select></label>
+            <label className="text-xs text-[#F6F2EA]/60">{text('Course updates', 'Update course')}<select value={preferences.digestFrequency} onChange={(event) => update('digestFrequency', event.target.value)} className={`${fieldClass} block w-full`}><option value="immediate">{text('As they are published', 'Saat dipublikasikan')}</option><option value="daily">{text('Daily digest', 'Ringkasan harian')}</option></select></label>
           </div>
           {notice && <p role="status" className="text-sm text-emerald-100">{notice}</p>}
           {error && <p role="alert" className="text-sm text-red-200">{error}</p>}
-          <button type="submit" disabled={saving} className="rounded-full border border-[#C9A96E]/50 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-[#C9A96E] disabled:opacity-50">{saving ? 'Saving…' : 'Save preferences'}</button>
+          <button type="submit" disabled={saving} className="rounded-full border border-[#C9A96E]/50 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-[#C9A96E] disabled:opacity-50">{saving ? text('Saving…', 'Menyimpan…') : text('Save preferences', 'Simpan preferensi')}</button>
         </>
       )}
     </form>

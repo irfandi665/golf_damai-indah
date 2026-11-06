@@ -8,15 +8,16 @@ import {
   useMotionValueEvent,
   useScroll,
 } from 'framer-motion';
+import { LanguageSwitcher, useLocale } from '@/components/i18n/LocaleProvider';
 
 const EASE = [0.22, 1, 0.36, 1];
 
 const NAV_LINKS = [
-  { label: 'Course & Club', href: '/course' },
-  { label: 'Prices', href: '/pricing' },
-  { label: 'Events', href: '/events' },
-  { label: 'Academy', href: '/academy' },
-  { label: 'Visit', href: '/contact' },
+  { en: 'Course & Club', id: 'Course & Klub', href: '/course' },
+  { en: 'Prices', id: 'Harga', href: '/pricing' },
+  { en: 'Events', id: 'Acara', href: '/events' },
+  { en: 'Academy', id: 'Akademi', href: '/academy' },
+  { en: 'Visit', id: 'Kunjungi', href: '/contact' },
 ];
 
 function Logo({ onClick }) {
@@ -43,6 +44,7 @@ function Logo({ onClick }) {
 }
 
 export default function Navbar() {
+  const { locale, text } = useLocale();
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [open, setOpen] = useState(false);
@@ -103,31 +105,32 @@ export default function Navbar() {
           <Logo onClick={closeMenu} />
 
           {/* Navigasi desktop */}
-          <nav aria-label="Navigasi utama" className="hidden items-center gap-5 xl:gap-7 xl:flex">
+          <nav aria-label={text('Main navigation', 'Navigasi utama')} className="hidden items-center gap-5 xl:gap-7 xl:flex">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 className="relative text-[0.65rem] font-medium uppercase tracking-[0.16em] text-[#F6F2EA]/80 transition-colors duration-300 after:absolute after:-bottom-2 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-[#C9A96E] after:transition-transform after:duration-500 hover:text-[#C9A96E] hover:after:scale-x-100 focus-visible:text-[#C9A96E] focus-visible:outline-none"
               >
-                {link.label}
+                {locale === 'id' ? link.id : link.en}
               </Link>
             ))}
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             <Link
               href="/member"
               className="hidden text-xs font-medium uppercase tracking-[0.25em] text-[#F6F2EA]/80 transition-colors duration-300 hover:text-[#C9A96E] focus-visible:outline-none focus-visible:text-[#C9A96E] xl:inline-block"
             >
-              Member Login
+              {text('Member Login', 'Login Member')}
             </Link>
 
             <Link
               href="/booking"
               className="hidden rounded-full border border-[#C9A96E] bg-[#C9A96E] px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#0F2A20] transition-all duration-500 hover:bg-transparent hover:text-[#C9A96E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F2A20] lg:inline-block"
             >
-              Book Tee Time
+              {text('Book Tee Time', 'Pesan Tee Time')}
             </Link>
 
             {/* Tombol hamburger */}
@@ -136,7 +139,7 @@ export default function Navbar() {
               onClick={() => setOpen((value) => !value)}
               aria-expanded={open}
               aria-controls="mobile-menu"
-              aria-label={open ? 'Tutup menu' : 'Buka menu'}
+              aria-label={open ? text('Close menu', 'Tutup menu') : text('Open menu', 'Buka menu')}
               className="flex h-11 w-11 items-center justify-center rounded-full border border-[#C9A96E]/40 text-[#F6F2EA] transition-colors duration-300 hover:border-[#C9A96E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] xl:hidden"
             >
               <span className="relative block h-3.5 w-5">
@@ -168,14 +171,14 @@ export default function Navbar() {
             id="mobile-menu"
             role="dialog"
             aria-modal="true"
-            aria-label="Menu navigasi"
+            aria-label={text('Navigation menu', 'Menu navigasi')}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE }}
             className="fixed inset-0 z-40 flex flex-col justify-between bg-[#0F2A20]/95 px-6 pb-10 pt-28 backdrop-blur-2xl xl:hidden"
           >
-            <nav aria-label="Navigasi mobile" className="flex flex-col">
+            <nav aria-label={text('Mobile navigation', 'Navigasi mobile')} className="flex flex-col">
               {NAV_LINKS.map((link, index) => (
                 <motion.div
                   key={link.href}
@@ -189,7 +192,7 @@ export default function Navbar() {
                     onClick={closeMenu}
                     className="flex items-center justify-between py-5 font-[family-name:var(--font-heading)] text-4xl font-medium text-[#F6F2EA] transition-colors duration-300 hover:text-[#C9A96E] focus-visible:text-[#C9A96E] focus-visible:outline-none"
                   >
-                    {link.label}
+                    {locale === 'id' ? link.id : link.en}
                     <span aria-hidden="true" className="text-lg text-[#C9A96E]">
                       →
                     </span>
@@ -204,19 +207,20 @@ export default function Navbar() {
               transition={{ duration: 0.6, ease: EASE, delay: 0.4 }}
               className="flex flex-col gap-4"
             >
+              <LanguageSwitcher className="self-end" />
               <Link
                 href="/booking"
                 onClick={closeMenu}
                 className="rounded-full bg-[#C9A96E] px-8 py-4 text-center text-sm font-semibold uppercase tracking-[0.2em] text-[#0F2A20] transition-colors duration-300 hover:bg-[#d8bb84] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6F2EA]"
               >
-                Book Your Tee Time
+                {text('Book Your Tee Time', 'Pesan Tee Time')}
               </Link>
               <Link
                 href="/member"
                 onClick={closeMenu}
                 className="rounded-full border border-[#C9A96E]/40 px-8 py-4 text-center text-sm font-medium uppercase tracking-[0.2em] text-[#F6F2EA] transition-colors duration-300 hover:border-[#C9A96E] hover:text-[#C9A96E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E]"
               >
-                Member Login
+                {text('Member Login', 'Login Member')}
               </Link>
             </motion.div>
           </motion.div>

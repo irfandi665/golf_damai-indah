@@ -8,8 +8,10 @@ import {
   formatCurrency,
   pluralize,
 } from '@/lib/booking/utils';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 export default function StepServices({ state, dispatch }) {
+  const { text } = useLocale();
   const carts = Math.ceil(state.players / BUGGY.seatsPerCart);
 
   return (
@@ -17,10 +19,10 @@ export default function StepServices({ state, dispatch }) {
       {/* Caddy */}
       <fieldset>
         <legend className="mb-5 font-[family-name:var(--font-heading)] text-3xl font-medium text-[#F6F2EA]">
-          Your Caddy
+          {text('Your Caddy', 'Caddy Anda')}
         </legend>
         <p className="mb-5 text-sm text-[#F6F2EA]/55">
-          One caddy per player, assigned and waiting at the starter.
+          {text('One caddy per player, assigned and waiting at the starter.', 'Satu caddy untuk setiap pemain, disiapkan dan menunggu di area starter.')}
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -45,7 +47,7 @@ export default function StepServices({ state, dispatch }) {
                 />
                 <span className="flex items-start justify-between gap-4">
                   <span className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F6F2EA]">
-                    {option.label}
+                    {option.id === 'standard' ? text('Standard Caddy', 'Caddy Standar') : text('Senior Caddy', 'Caddy Senior')}
                   </span>
                   <span
                     aria-hidden="true"
@@ -57,11 +59,13 @@ export default function StepServices({ state, dispatch }) {
                   </span>
                 </span>
                 <span className="mt-2 text-sm leading-relaxed text-[#F6F2EA]/60">
-                  {option.description}
+                  {option.id === 'standard'
+                    ? text('Trained caddy for club selection, yardages and green reading.', 'Caddy terlatih untuk pemilihan stik, jarak, dan membaca green.')
+                    : text('Our most experienced caddies, with deep knowledge of every green.', 'Caddy paling berpengalaman dengan pengetahuan mendalam tentang setiap green.')}
                 </span>
                 <span className="mt-5 text-sm tabular-nums text-[#C9A96E]">
                   {formatCurrency(option.pricePerPlayer)}
-                  <span className="text-[#F6F2EA]/50"> / player</span>
+                  <span className="text-[#F6F2EA]/50"> / {text('player', 'pemain')}</span>
                 </span>
               </label>
             );
@@ -85,13 +89,13 @@ export default function StepServices({ state, dispatch }) {
           <div>
             <p id="buggy-label" className="text-base font-medium text-[#F6F2EA]">
               {state.buggy
-                ? `${pluralize(carts, 'cart')} reserved for ${pluralize(state.players, 'player')}`
-                : 'Walking the course'}
+                ? text(`${pluralize(carts, 'cart')} reserved for ${pluralize(state.players, 'player')}`, `${carts} buggy disiapkan untuk ${state.players} pemain`)
+                : text('Walking the course', 'Berjalan di lapangan')}
             </p>
-            <p className="mt-1 text-sm text-[#F6F2EA]/60">{BUGGY.description}</p>
+            <p className="mt-1 text-sm text-[#F6F2EA]/60">{text(BUGGY.description, 'Buggy bersama untuk maksimal dua pemain, tersedia di area starter.')}</p>
             <p className="mt-3 text-sm tabular-nums text-[#C9A96E]">
               {formatCurrency(BUGGY.pricePerCart)}
-              <span className="text-[#F6F2EA]/50"> / cart</span>
+              <span className="text-[#F6F2EA]/50"> / buggy</span>
             </p>
           </div>
 
@@ -121,7 +125,7 @@ export default function StepServices({ state, dispatch }) {
           id="extras-heading"
           className="mb-5 font-[family-name:var(--font-heading)] text-3xl font-medium text-[#F6F2EA]"
         >
-          Enhance Your Round
+          {text('Enhance Your Round', 'Lengkapi Ronde Anda')}
         </h2>
         <ul className="divide-y divide-[#C9A96E]/15 rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03]">
           {EXTRAS.map((extra) => (
@@ -130,11 +134,19 @@ export default function StepServices({ state, dispatch }) {
               className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <p className="text-base font-medium text-[#F6F2EA]">{extra.label}</p>
-                <p className="mt-1 text-sm text-[#F6F2EA]/60">{extra.description}</p>
+                <p className="text-base font-medium text-[#F6F2EA]">{({
+                  rentalClubs: text('Rental Club Set', 'Sewa Set Stik Golf'),
+                  rangeWarmup: text('Driving Range Warm-up', 'Pemanasan di Driving Range'),
+                  halfwayOrder: text('Halfway House Pre-order', 'Pesan Makanan Halfway House'),
+                })[extra.id]}</p>
+                <p className="mt-1 text-sm text-[#F6F2EA]/60">{({
+                  rentalClubs: text('Premium full set, waiting at the starter counter.', 'Set lengkap premium, tersedia di konter starter.'),
+                  rangeWarmup: text('A bucket of balls before your tee time.', 'Satu keranjang bola sebelum tee time Anda.'),
+                  halfwayOrder: text('Meal and drink prepared and ready when you reach the turn.', 'Makanan dan minuman disiapkan saat Anda mencapai halfway house.'),
+                })[extra.id]}</p>
                 <p className="mt-2 text-sm tabular-nums text-[#C9A96E]">
                   {formatCurrency(extra.unitPrice)}
-                  <span className="text-[#F6F2EA]/50"> {extra.unitLabel}</span>
+                  <span className="text-[#F6F2EA]/50"> {extra.unitLabel === 'per set' ? text('per set', 'per set') : text('per player', 'per pemain')}</span>
                 </p>
               </div>
               <QuantityStepper

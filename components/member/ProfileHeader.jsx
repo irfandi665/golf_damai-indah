@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { formatCurrency } from '@/lib/booking/utils';
 import { formatNumber, formatShortDate, getGreeting } from '@/lib/member/utils';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -20,6 +21,7 @@ function Stat({ label, value, hint }) {
 }
 
 export default function ProfileHeader({ member, now, tier, handicapIndex, points, wallet, nextBooking }) {
+  const { locale, text } = useLocale();
   const initials = member.name
     .split(' ')
     .map((part) => part[0])
@@ -42,7 +44,7 @@ export default function ProfileHeader({ member, now, tier, handicapIndex, points
           </span>
           <div>
             <p className="text-[0.7rem] font-medium uppercase tracking-[0.4em] text-[#C9A96E]">
-              {getGreeting(now)}
+              {text(getGreeting(now), getGreeting(now) === 'Good morning' ? 'Selamat pagi' : getGreeting(now) === 'Good afternoon' ? 'Selamat siang' : 'Selamat malam')}
             </p>
             <h1
               id="member-heading"
@@ -55,7 +57,7 @@ export default function ProfileHeader({ member, now, tier, handicapIndex, points
                 {tier.label}
               </span>
               <span className="tabular-nums">ID {member.memberId}</span>
-              <span>Member since {formatShortDate(member.sinceKey)}</span>
+              <span>{text('Member since', 'Member sejak')} {formatShortDate(member.sinceKey, locale)}</span>
             </p>
           </div>
         </div>
@@ -64,22 +66,22 @@ export default function ProfileHeader({ member, now, tier, handicapIndex, points
           href="/booking"
           className="inline-flex items-center justify-center rounded-full bg-[#C9A96E] px-8 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-[#0F2A20] transition-colors duration-300 hover:bg-[#d8bb84] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6F2EA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F2A20]"
         >
-          Book Tee Time
+          {text('Book Tee Time', 'Pesan Tee Time')}
         </Link>
       </div>
 
       <dl className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat
-          label="Handicap Index"
+          label={text('Handicap Index', 'Indeks Handicap')}
           value={handicapIndex === null ? '—' : handicapIndex.toFixed(1)}
-          hint={handicapIndex === null ? 'Log 3 rounds to unlock' : 'Indicative index'}
+          hint={handicapIndex === null ? text('Log 3 rounds to unlock', 'Catat 3 ronde untuk membuka') : text('Indicative index', 'Indeks indikatif')}
         />
-        <Stat label="Loyalty Points" value={formatNumber(points)} hint="Redeem in Rewards" />
-        <Stat label="Fairway Wallet" value={formatCurrency(wallet)} hint="Applied at check-in" />
+        <Stat label={text('Loyalty Points', 'Poin Loyalty')} value={formatNumber(points, locale)} hint={text('Redeem in Rewards', 'Tukarkan di Rewards')} />
+        <Stat label="Fairway Wallet" value={formatCurrency(wallet)} hint={text('Applied at check-in', 'Diterapkan saat check-in')} />
         <Stat
-          label="Next Tee Time"
+          label={text('Next Tee Time', 'Tee Time Berikutnya')}
           value={nextBooking ? nextBooking.time : '—'}
-          hint={nextBooking ? formatShortDate(nextBooking.dateKey) : 'No upcoming round'}
+          hint={nextBooking ? formatShortDate(nextBooking.dateKey, locale) : text('No upcoming round', 'Belum ada ronde mendatang')}
         />
       </dl>
     </motion.header>

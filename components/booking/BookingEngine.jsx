@@ -17,13 +17,15 @@ import {
 } from '@/lib/booking/engine';
 import { apiRequest } from '@/lib/api-client';
 import { STEPS, bookingReducer, canProceed, initialState } from '@/lib/booking/reducer';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 const EASE = [0.22, 1, 0.36, 1];
 
 function BookingSkeleton() {
+  const { text } = useLocale();
   return (
     <div aria-busy="true" className="mx-auto max-w-7xl px-6 pb-24 pt-32 lg:px-10 lg:pt-40">
-      <p className="sr-only" role="status">Memuat mesin booking…</p>
+      <p className="sr-only" role="status">{text('Loading booking engine…', 'Memuat mesin booking…')}</p>
       <div className="h-6 w-40 animate-pulse rounded bg-white/[0.06]" />
       <div className="mt-6 h-16 w-full max-w-xl animate-pulse rounded bg-white/[0.06]" />
       <div className="mt-14 grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -35,8 +37,10 @@ function BookingSkeleton() {
 }
 
 function Stepper({ stepIndex, onGoTo }) {
+  const { locale, text } = useLocale();
+  const labels = locale === 'id' ? ['Jadwal', 'Layanan', 'Konfirmasi'] : null;
   return (
-    <ol aria-label="Tahapan pemesanan" className="flex items-center gap-3 sm:gap-5">
+    <ol aria-label={text('Booking steps', 'Tahapan pemesanan')} className="flex items-center gap-3 sm:gap-5">
       {STEPS.map((step, index) => {
         const done = index < stepIndex;
         const current = index === stepIndex;
@@ -68,7 +72,7 @@ function Stepper({ stepIndex, onGoTo }) {
                   current ? 'inline text-[#F6F2EA]' : 'hidden text-[#F6F2EA]/50 sm:inline'
                 }`}
               >
-                {step.label}
+                {labels ? labels[index] : step.label}
               </span>
             </button>
             {index < STEPS.length - 1 && (
@@ -82,6 +86,7 @@ function Stepper({ stepIndex, onGoTo }) {
 }
 
 function BookingFlow({ now }) {
+  const { text } = useLocale();
   const [state, dispatch] = useReducer(bookingReducer, initialState);
   const panelRef = useRef(null);
   const lastFocusKey = useRef(state.stepIndex);
@@ -99,9 +104,9 @@ function BookingFlow({ now }) {
       dispatch({ type: 'WAITLIST_CLAIMED', ...claim });
     }).catch((error) => {
       window.history.replaceState(null, '', '/booking');
-      dispatch({ type: 'SET_NOTICE', notice: error.message || 'This waitlist offer has expired. Please choose another tee time.' });
+      dispatch({ type: 'SET_NOTICE', notice: error.message || text('This waitlist offer has expired. Please choose another tee time.', 'Penawaran waitlist ini sudah kedaluwarsa. Silakan pilih tee time lain.') });
     });
-  }, []);
+  }, [text]);
 
   const localQuote = useMemo(
     () =>
@@ -154,17 +159,17 @@ function BookingFlow({ now }) {
   }, [state.holdId]);
 
   const selectSlot = useCallback(async (slot) => {
-    if (!slot.slotId) throw new Error('This tee time cannot be held. Refresh availability and try again.');
+    if (!slot.slotId) throw new Error(text('This tee time cannot be held. Refresh availability and try again.', 'Tee time ini tidak dapat ditahan. Muat ulang ketersediaan lalu coba lagi.'));
     if (state.holdId) await releaseTeeTimeHold(state.holdId);
     const hold = await createTeeTimeHold({ slotId: slot.slotId, players: state.players });
     dispatch({ type: 'SELECT_SLOT', slot, holdId: hold.holdId });
-  }, [state.holdId, state.players]);
+  }, [state.holdId, state.players, text]);
 
   const errors = useMemo(() => {
     const result = validateGuest(state.guest);
-    if (!state.agreed) result.agreed = 'Please accept the booking terms to continue.';
+    if (!state.agreed) result.agreed = text('Please accept the booking terms to continue.', 'Setujui ketentuan pemesanan untuk melanjutkan.');
     return result;
-  }, [state.guest, state.agreed]);
+  }, [state.guest, state.agreed, text]);
 
   // Pindahkan fokus + scroll ke panel setiap langkah berganti (aksesibilitas keyboard & screen reader)
   const focusKey = state.reference ? 'done' : state.stepIndex;
@@ -208,18 +213,18 @@ function BookingFlow({ now }) {
     } catch (error) {
       dispatch({
         type: 'SUBMIT_FAILURE',
-        error: error.message || 'We could not complete your booking. Please try again in a moment.',
+        error: error.message || text('We could not complete your booking. Please try again in a moment.', 'Pemesanan belum dapat diselesaikan. Silakan coba lagi sebentar lagi.'),
       });
     }
-  }, [errors, quote, state]);
+  }, [errors, quote, state, text]);
 
   const isLastStep = state.stepIndex === STEPS.length - 1;
   const submitting = state.submit.status === 'submitting';
 
-  let actionLabel = 'Continue';
-  if (state.stepIndex === 0) actionLabel = state.slot ? 'Continue' : 'Select a Tee Time';
-  if (state.stepIndex === 1) actionLabel = 'Review Booking';
-  if (isLastStep) actionLabel = submitting ? 'Confirming…' : 'Confirm Booking';
+  let actionLabel = text('Continue', 'Lanjutkan');
+  if (state.stepIndex === 0) actionLabel = state.slot ? text('Continue', 'Lanjutkan') : text('Select a Tee Time', 'Pilih Tee Time');
+  if (state.stepIndex === 1) actionLabel = text('Review Booking', 'Tinjau Pesanan');
+  if (isLastStep) actionLabel = submitting ? text('Confirming…', 'Mengonfirmasi…') : text('Confirm Booking', 'Konfirmasi Booking');
 
   const actionDisabled = submitting
     || (state.stepIndex === 0 && !canProceed(state))
@@ -245,17 +250,17 @@ function BookingFlow({ now }) {
             <div className="flex items-center gap-4">
               <span aria-hidden="true" className="h-px w-12 bg-[#C9A96E]" />
               <p className="text-[0.7rem] font-medium uppercase tracking-[0.4em] text-[#C9A96E] sm:text-xs">
-                Online Reservation
+                {text('Online Reservation', 'Reservasi Online')}
               </p>
             </div>
             <h1
               id="booking-heading"
               className="mt-6 font-[family-name:var(--font-heading)] text-5xl font-medium leading-[1.05] tracking-tight text-[#F6F2EA] sm:text-6xl"
             >
-              Reserve your <span className="italic text-[#C9A96E]">tee time</span>
+              {text('Reserve your', 'Pesan')} <span className="italic text-[#C9A96E]">tee time</span>
             </h1>
             <p className="mt-5 max-w-2xl rounded-xl border border-[#C9A96E]/20 bg-[#C9A96E]/5 px-5 py-4 text-sm text-[#F6F2EA]/70">
-              Reservation only: all payments are made at the club. This app does not process or confirm payments.
+              {text('Reservation only: all payments are made at the club. This app does not process or confirm payments.', 'Reservasi saja: seluruh pembayaran dilakukan di klub. Aplikasi ini tidak memproses atau mengonfirmasi pembayaran.')}
             </p>
             <div className="mt-10">
               <Stepper

@@ -17,6 +17,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test:unit": "node --test tests/unit/*.test.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "test:integration": "node --test tests/integration/api.test.mjs tests/integration/tee-time-hold-race.test.mjs",
     "test:integration:race": "node --test tests/integration/tee-time-hold-race.test.mjs"

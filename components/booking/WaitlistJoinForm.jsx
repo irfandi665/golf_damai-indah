@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/api-client';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 const fieldClass = 'mt-2 w-full rounded-xl border border-[#C9A96E]/25 bg-[#0F2A20] px-4 py-3 text-sm text-[#F6F2EA] focus:border-[#C9A96E] focus:outline-none focus:ring-2 focus:ring-[#C9A96E]/40';
 
 export default function WaitlistJoinForm({ slot, dateKey, players, onClose }) {
+  const { text } = useLocale();
   const [member, setMember] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState('');
@@ -27,12 +29,12 @@ export default function WaitlistJoinForm({ slot, dateKey, players, onClose }) {
         body: { ...form, slotId: Number(slot.slotId), players },
       });
       setNotice(result.status === 'pending_verification'
-        ? `Check ${form.email} and verify the address to activate your waitlist entry.`
+        ? text(`Check ${form.email} and verify the address to activate your waitlist entry.`, `Periksa ${form.email} dan verifikasi alamat email untuk mengaktifkan waitlist Anda.`)
         : result.status === 'held'
-          ? 'You are on the waitlist. A tee time offer is being sent to your email.'
-          : 'You are on the waitlist. We will email you if a suitable tee time opens.');
+          ? text('You are on the waitlist. A tee time offer is being sent to your email.', 'Anda telah masuk waitlist. Penawaran tee time akan dikirim melalui email.')
+          : text('You are on the waitlist. We will email you if a suitable tee time opens.', 'Anda telah masuk waitlist. Kami akan mengirim email jika tee time yang sesuai tersedia.'));
       if (result.emailNotification === 'queued') {
-        setNotice((current) => `${current} Email delivery is pending club configuration.`);
+        setNotice((current) => `${current} ${text('Email delivery is pending club configuration.', 'Pengiriman email menunggu konfigurasi klub.')}`);
       }
     } catch (reason) {
       setError(reason.message);
@@ -44,18 +46,18 @@ export default function WaitlistJoinForm({ slot, dateKey, players, onClose }) {
   return (
     <form onSubmit={submit} className="mt-4 space-y-4 rounded-xl border border-[#C9A96E]/25 bg-[#0F2A20]/70 p-5">
       <div>
-        <h4 className="font-[family-name:var(--font-heading)] text-xl">Join the waitlist · {slot.time}</h4>
+        <h4 className="font-[family-name:var(--font-heading)] text-xl">{text('Join the waitlist', 'Gabung Waitlist')} · {slot.time}</h4>
         <p className="mt-1 text-xs leading-relaxed text-[#F6F2EA]/55">
           {member
-            ? `For ${players} player(s) on ${dateKey}. We will use your verified member contact details.`
-            : `For ${players} player(s) on ${dateKey}. Verify your email before your entry becomes active.`}
-          {' '}If a place opens, it is held for 10 minutes while you complete the reservation.
+            ? text(`For ${players} player(s) on ${dateKey}. We will use your verified member contact details.`, `Untuk ${players} pemain pada ${dateKey}. Kami menggunakan kontak member terverifikasi Anda.`)
+            : text(`For ${players} player(s) on ${dateKey}. Verify your email before your entry becomes active.`, `Untuk ${players} pemain pada ${dateKey}. Verifikasi email sebelum pendaftaran aktif.`)}
+          {' '}{text('If a place opens, it is held for 10 minutes while you complete the reservation.', 'Jika tempat tersedia, slot ditahan selama 10 menit untuk menyelesaikan reservasi.')}
         </p>
       </div>
       {!member && (
         <div className="grid gap-3 sm:grid-cols-3">
-          <label className="text-xs text-[#F6F2EA]/65">Full name<input name="name" required minLength={2} maxLength={120} className={fieldClass} /></label>
-          <label className="text-xs text-[#F6F2EA]/65">Mobile phone<input name="phone" type="tel" required className={fieldClass} /></label>
+          <label className="text-xs text-[#F6F2EA]/65">{text('Full name', 'Nama lengkap')}<input name="name" required minLength={2} maxLength={120} className={fieldClass} /></label>
+          <label className="text-xs text-[#F6F2EA]/65">{text('Mobile phone', 'Nomor HP')}<input name="phone" type="tel" required className={fieldClass} /></label>
           <label className="text-xs text-[#F6F2EA]/65">Email<input name="email" type="email" required maxLength={254} className={fieldClass} /></label>
         </div>
       )}
@@ -63,10 +65,10 @@ export default function WaitlistJoinForm({ slot, dateKey, players, onClose }) {
       {error && <p role="alert" className="text-sm text-red-200">{error}</p>}
       <div className="flex flex-wrap gap-3">
         <button type="submit" disabled={submitting || Boolean(notice)} className="rounded-full bg-[#C9A96E] px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-[#0F2A20] disabled:opacity-50">
-          {submitting ? 'Joining…' : 'Join waitlist'}
+          {submitting ? text('Joining…', 'Mendaftar…') : text('Join waitlist', 'Gabung waitlist')}
         </button>
         <button type="button" onClick={onClose} className="rounded-full border border-[#F6F2EA]/25 px-5 py-2.5 text-xs text-[#F6F2EA]/70">
-          Close
+          {text('Close', 'Tutup')}
         </button>
       </div>
     </form>

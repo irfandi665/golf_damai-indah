@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   MotionConfig,
@@ -24,9 +23,9 @@ const itemVariants = {
 };
 
 const STATS = [
-  { value: '18', label: 'Championship Holes' },
-  { value: 'Par 72', label: 'Signature Layout' },
-  { value: '24/7', label: 'Online Tee-Time Booking' },
+  { value: '18', labelEn: 'Configured holes', labelId: 'Lubang terkonfigurasi' },
+  { value: 'Par 72', labelEn: 'Course setup', labelId: 'Konfigurasi course' },
+  { value: 'Online', labelEn: 'Tee-time reservations', labelId: 'Reservasi tee time' },
 ];
 
 function ArrowIcon() {
@@ -72,7 +71,7 @@ export default function HeroSection() {
         aria-label="Selamat datang di Damai Indah Golf"
         className="relative isolate flex min-h-[100svh] items-center overflow-hidden bg-[#0F2A20]"
       >
-        {/* Lapisan latar: poster + video loop dengan parallax */}
+        {/* Abstract course-inspired background; replace with verified club media when available. */}
         <motion.div
           aria-hidden="true"
           style={
@@ -80,31 +79,14 @@ export default function HeroSection() {
               ? undefined
               : { y: backgroundY, scale: backgroundScale }
           }
-          className="absolute inset-x-0 -top-[12%] -z-30 h-[124%] will-change-transform"
+          className="absolute inset-x-0 -top-[12%] -z-30 h-[124%] overflow-hidden bg-[radial-gradient(ellipse_at_68%_40%,rgba(111,145,100,0.42),transparent_35%),radial-gradient(ellipse_at_82%_72%,rgba(201,169,110,0.14),transparent_34%),linear-gradient(115deg,#0F2A20_8%,#1d4a37_56%,#0b2119_100%)]"
         >
-          <Image
-            src="/media/hero-poster.jpg"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
-          />
-          {!prefersReducedMotion && (
-            <video
-              className="absolute inset-0 h-full w-full object-cover"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              poster="/media/hero-poster.jpg"
-              aria-hidden="true"
-              tabIndex={-1}
-            >
-              <source src="/media/hero.mp4" type="video/mp4" />
-            </video>
-          )}
+          <div className="absolute -right-[22rem] top-[8%] h-[54rem] w-[54rem] rounded-full border border-[#C9A96E]/15 sm:-right-[18rem]">
+            <div className="absolute inset-12 rounded-full border border-[#F6F2EA]/10" />
+            <div className="absolute inset-28 rounded-full border border-[#C9A96E]/10" />
+            <div className="absolute inset-48 rounded-full border border-[#F6F2EA]/10" />
+          </div>
+          <div className="absolute bottom-[18%] left-[42%] h-28 w-[70%] -rotate-[12deg] rounded-[50%] border border-[#F6F2EA]/10 sm:left-[48%]" />
         </motion.div>
 
         {/* Overlay gradien untuk keterbacaan teks */}
@@ -131,7 +113,7 @@ export default function HeroSection() {
             <motion.div variants={itemVariants} className="flex items-center gap-4">
               <span aria-hidden="true" className="h-px w-12 bg-[#C9A96E]" />
               <p className="text-[0.7rem] font-medium uppercase tracking-[0.4em] text-[#C9A96E] sm:text-xs">
-                Championship Golf Experience
+                Damai Indah Golf · Tee-time reservations
               </p>
             </motion.div>
 
@@ -139,16 +121,18 @@ export default function HeroSection() {
               variants={itemVariants}
               className="mt-8 font-[family-name:var(--font-heading)] text-5xl font-medium leading-[1.02] tracking-tight text-[#F6F2EA] sm:text-6xl lg:text-8xl"
             >
-              Your Round.
-              <span className="block italic text-[#C9A96E]">Perfectly Arranged.</span>
+              <span lang="en">A round, arranged with care.</span>
+              <span lang="id" className="mt-3 block text-[0.62em] italic text-[#F6F2EA]/85 sm:text-[0.58em]">
+                Ronde Anda, tertata dengan mudah.
+              </span>
             </motion.h1>
 
             <motion.p
               variants={itemVariants}
               className="mt-8 max-w-xl text-base leading-relaxed text-[#F6F2EA]/80 sm:text-lg"
             >
-              Reserve your tee time in seconds, see the full price upfront, and arrive to a
-              fairway, a caddy, and a cart that are already waiting for you.
+              <span lang="en">Choose an available tee time, review your server-calculated quote, and make a reservation. Payment is made at the club.</span>
+              <span lang="id" className="mt-3 block">Pilih tee time yang tersedia, tinjau rincian harga dari sistem, lalu buat reservasi. Pembayaran dilakukan di klub.</span>
             </motion.p>
 
             <motion.div
@@ -164,7 +148,10 @@ export default function HeroSection() {
                     aria-hidden="true"
                     className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/40 transition-[left] duration-700 ease-out group-hover:left-[130%]"
                   />
-                  <span className="relative">Book Your Tee Time</span>
+                  <span className="relative text-center">
+                    <span lang="en">Book a Tee Time</span>
+                    <span lang="id" className="block text-[0.65rem] tracking-[0.12em]">Pesan Tee Time</span>
+                  </span>
                   <span className="relative">
                     <ArrowIcon />
                   </span>
@@ -172,10 +159,13 @@ export default function HeroSection() {
               </motion.div>
 
               <Link
-                href="/#course"
+                href="/course"
                 className="inline-flex items-center justify-center rounded-full border border-[#F6F2EA]/30 px-9 py-4 text-sm font-medium uppercase tracking-[0.2em] text-[#F6F2EA] backdrop-blur-sm transition-all duration-500 hover:border-[#C9A96E] hover:text-[#C9A96E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F2A20]"
               >
-                Explore the Course
+                <span className="text-center">
+                  <span lang="en">Course & Facilities</span>
+                  <span lang="id" className="block text-[0.65rem] tracking-[0.12em]">Course & Fasilitas</span>
+                </span>
               </Link>
             </motion.div>
           </motion.div>
@@ -212,8 +202,10 @@ export default function HeroSection() {
                 index > 0 ? 'border-l border-[#C9A96E]/15' : ''
               }`}
             >
-              <dt className="order-2 mt-1 text-[0.6rem] font-medium uppercase tracking-[0.2em] text-[#F6F2EA]/60 sm:text-xs sm:tracking-[0.3em]">
-                {stat.label}
+              <dt className="order-2 mt-1 text-[0.54rem] font-medium uppercase tracking-[0.12em] text-[#F6F2EA]/60 sm:text-xs sm:tracking-[0.2em]">
+                <span lang="en">{stat.labelEn}</span>
+                <span aria-hidden="true"> / </span>
+                <span lang="id">{stat.labelId}</span>
               </dt>
               <dd className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#C9A96E] sm:text-4xl">
                 {stat.value}

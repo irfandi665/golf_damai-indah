@@ -6,6 +6,7 @@ import {
   formatLongDate,
   pluralize,
 } from '@/lib/booking/utils';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 function PrimaryAction({ isLastStep, label, disabled, onNext, className = '' }) {
   return (
@@ -22,13 +23,14 @@ function PrimaryAction({ isLastStep, label, disabled, onNext, className = '' }) 
 }
 
 export function PriceSummary({ state, quote, onBack, onNext, actionLabel, actionDisabled, isLastStep }) {
+  const { locale, text } = useLocale();
   return (
     <aside
-      aria-label="Ringkasan reservasi"
+      aria-label={text('Reservation summary', 'Ringkasan reservasi')}
       className="sticky top-28 hidden self-start rounded-2xl border border-[#C9A96E]/25 bg-[#0F2A20] p-7 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)] lg:block"
     >
       <p className="text-[0.65rem] font-medium uppercase tracking-[0.35em] text-[#C9A96E]">
-        Your Reservation
+        {text('Your Reservation', 'Reservasi Anda')}
       </p>
 
       {quote && state.slot ? (
@@ -37,7 +39,7 @@ export function PriceSummary({ state, quote, onBack, onNext, actionLabel, action
             {state.slot.time}
           </p>
           <p className="mt-1 text-sm text-[#F6F2EA]/65">
-            {formatLongDate(state.dateKey)} · {pluralize(state.players, 'player')}
+            {formatLongDate(state.dateKey, locale)} · {text(pluralize(state.players, 'player'), `${state.players} pemain`)}
           </p>
 
           <ul className="mt-6 space-y-3 border-t border-[#C9A96E]/15 pt-6 text-sm">
@@ -54,29 +56,29 @@ export function PriceSummary({ state, quote, onBack, onNext, actionLabel, action
 
           <dl className="mt-6 space-y-2 border-t border-[#C9A96E]/15 pt-6 text-sm">
             <div className="flex justify-between text-[#F6F2EA]/65">
-              <dt>Subtotal</dt>
+              <dt>{text('Subtotal', 'Subtotal')}</dt>
               <dd className="tabular-nums">{formatCurrency(quote.subtotal)}</dd>
             </div>
             <div className="flex justify-between text-[#F6F2EA]/65">
-              <dt>PPN 11%</dt>
+              <dt>{text('VAT 11%', 'PPN 11%')}</dt>
               <dd className="tabular-nums">{formatCurrency(quote.tax)}</dd>
             </div>
             <div className="flex items-baseline justify-between pt-3">
-              <dt className="text-[#F6F2EA]">Total</dt>
+              <dt className="text-[#F6F2EA]">{text('Total', 'Total')}</dt>
               <dd className="font-[family-name:var(--font-heading)] text-3xl font-semibold tabular-nums text-[#C9A96E]">
                 {formatCurrency(quote.total)}
               </dd>
             </div>
             {state.players > 1 && (
               <p className="pt-1 text-right text-xs tabular-nums text-[#F6F2EA]/45">
-                ≈ {formatCurrency(quote.perPlayer)} per player
+                ≈ {formatCurrency(quote.perPlayer)} {text('per player', 'per pemain')}
               </p>
             )}
           </dl>
         </>
       ) : (
         <p className="mt-4 text-sm leading-relaxed text-[#F6F2EA]/55">
-          Select a date and tee time to see your complete, all-in price. No hidden fees.
+          {text('Select a date and tee time to see your complete, all-in price. No hidden fees.', 'Pilih tanggal dan tee time untuk melihat total harga. Tidak ada biaya tersembunyi.')}
         </p>
       )}
 
@@ -94,7 +96,7 @@ export function PriceSummary({ state, quote, onBack, onNext, actionLabel, action
             disabled={state.submit.status === 'submitting'}
             className="rounded-full border border-[#C9A96E]/30 px-7 py-3.5 text-xs font-medium uppercase tracking-[0.2em] text-[#F6F2EA]/80 transition-colors hover:border-[#C9A96E] hover:text-[#C9A96E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] disabled:opacity-40"
           >
-            Back
+            {text('Back', 'Kembali')}
           </button>
         )}
       </div>
@@ -103,6 +105,7 @@ export function PriceSummary({ state, quote, onBack, onNext, actionLabel, action
 }
 
 export function MobileActionBar({ state, quote, onBack, onNext, actionLabel, actionDisabled, isLastStep }) {
+  const { text } = useLocale();
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#C9A96E]/25 bg-[#0F2A20]/90 px-5 pt-4 backdrop-blur-xl pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
       <div className="mx-auto flex max-w-xl items-center gap-3">
@@ -111,7 +114,7 @@ export function MobileActionBar({ state, quote, onBack, onNext, actionLabel, act
             type="button"
             onClick={onBack}
             disabled={state.submit.status === 'submitting'}
-            aria-label="Kembali ke langkah sebelumnya"
+            aria-label={text('Back to previous step', 'Kembali ke langkah sebelumnya')}
             className="flex h-12 w-12 flex-none items-center justify-center rounded-full border border-[#C9A96E]/40 text-[#C9A96E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] disabled:opacity-40"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -121,7 +124,7 @@ export function MobileActionBar({ state, quote, onBack, onNext, actionLabel, act
         )}
 
         <div className="min-w-0 flex-1">
-          <p className="text-[0.6rem] uppercase tracking-[0.25em] text-[#F6F2EA]/50">Total incl. tax</p>
+          <p className="text-[0.6rem] uppercase tracking-[0.25em] text-[#F6F2EA]/50">{text('Total incl. tax', 'Total termasuk pajak')}</p>
           <p className="truncate font-[family-name:var(--font-heading)] text-xl font-semibold tabular-nums text-[#C9A96E]">
             {quote ? formatCurrency(quote.total) : '—'}
           </p>

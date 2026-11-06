@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 const styles = {
   info: 'border-sky-300/30 bg-sky-950/20 text-sky-100',
@@ -8,7 +9,8 @@ const styles = {
   closed: 'border-red-300/30 bg-red-950/20 text-red-100',
 };
 
-export default function CourseStatus() {
+export default function CourseStatus({ bilingual = false }) {
+  const { text } = useLocale();
   const [updates, setUpdates] = useState(null);
   const [error, setError] = useState(false);
 
@@ -24,9 +26,15 @@ export default function CourseStatus() {
 
   return (
     <section aria-labelledby="course-status-title" className="rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] p-6">
-      <p id="course-status-title" className="text-xs font-medium uppercase tracking-[0.3em] text-[#C9A96E]">Course operations</p>
-      {error ? <p className="mt-4 text-sm text-amber-100">Live operating status is temporarily unavailable. Please contact the club before travelling.</p>
-        : updates === null ? <p className="mt-4 text-sm text-[#F6F2EA]/55">Loading operating updates…</p>
+      <p id="course-status-title" className="text-xs font-medium uppercase tracking-[0.3em] text-[#C9A96E]">
+        {text('Course operations', 'Informasi operasional course')}
+      </p>
+      {error ? <div className="mt-4 text-sm text-amber-100">
+        <p>{text('Published operating updates are temporarily unavailable. Please contact the club before travelling.', 'Update operasional belum dapat dimuat. Hubungi klub sebelum berkunjung.')}</p>
+      </div>
+        : updates === null ? <div className="mt-4 text-sm text-[#F6F2EA]/55">
+          <p>{text('Loading operating updates…', 'Memuat update operasional…')}</p>
+        </div>
           : updates.length ? (
             <ul className="mt-4 space-y-3">
               {updates.map((update) => (
@@ -36,7 +44,10 @@ export default function CourseStatus() {
                 </li>
               ))}
             </ul>
-          ) : <p className="mt-4 text-sm text-[#F6F2EA]/55">No operational notices at this time. Check with the club for same-day weather and course conditions.</p>}
+          ) : <div className="mt-4 text-sm text-[#F6F2EA]/55">
+            <p>{text('No published operating updates at this time.', 'Saat ini belum ada update operasional yang dipublikasikan.')}</p>
+            <p className="mt-3">{text('Please contact the club to confirm same-day weather or course conditions.', 'Hubungi klub untuk memastikan cuaca atau kondisi course hari ini.')}</p>
+          </div>}
     </section>
   );
 }

@@ -11,6 +11,7 @@ import {
   isSlotClosed,
   pluralize,
 } from '@/lib/booking/utils';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 function SlotSkeleton() {
   return (
@@ -23,6 +24,7 @@ function SlotSkeleton() {
 }
 
 export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect, now }) {
+  const { locale, text } = useLocale();
   const [reloadToken, setReloadToken] = useState(0);
   const [fetchState, setFetchState] = useState({ status: 'loading', slots: [] });
   const [selecting, setSelecting] = useState(false);
@@ -61,7 +63,7 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
   if (fetchState.status === 'loading') {
     return (
       <div aria-busy="true">
-        <p className="sr-only" role="status">Memuat jadwal tee time…</p>
+        <p className="sr-only" role="status">{text('Loading tee-time schedule…', 'Memuat jadwal tee time…')}</p>
         <SlotSkeleton />
       </div>
     );
@@ -71,14 +73,14 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
     return (
       <div role="alert" className="rounded-2xl border border-red-300/30 bg-red-950/20 p-6">
         <p className="text-sm text-[#F6F2EA]/85">
-          We could not load tee times for this date. Check your connection and try again.
+          {text('We could not load tee times for this date. Check your connection and try again.', 'Jadwal tee time untuk tanggal ini belum dapat dimuat. Periksa koneksi Anda dan coba lagi.')}
         </p>
         <button
           type="button"
           onClick={() => setReloadToken((value) => value + 1)}
           className="mt-4 rounded-full border border-[#C9A96E] px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A96E] transition-colors hover:bg-[#C9A96E] hover:text-[#0F2A20] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E]"
         >
-          Try Again
+          {text('Try Again', 'Coba Lagi')}
         </button>
       </div>
     );
@@ -105,15 +107,15 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
       )}
       <p role="status" className="mb-6 text-sm text-[#F6F2EA]/60">
         {bookableCount > 0
-          ? `${pluralize(bookableCount, 'tee time')} available for ${pluralize(players, 'player')}.`
-          : `No tee times fit a group of ${players} on this date. Try another date or a smaller group.`}
+          ? text(`${pluralize(bookableCount, 'tee time')} available for ${pluralize(players, 'player')}.`, `${bookableCount} tee time tersedia untuk ${players} pemain.`)
+          : text(`No tee times fit a group of ${players} on this date. Try another date or a smaller group.`, `Tidak ada tee time untuk ${players} pemain pada tanggal ini. Coba tanggal lain atau kurangi jumlah pemain.`)}
       </p>
 
       <div className="space-y-8">
         {groups.map((group) => (
           <div key={group.id}>
             <h3 className="mb-3 text-[0.7rem] font-medium uppercase tracking-[0.35em] text-[#C9A96E]">
-              {group.label}
+              {locale === 'id' ? ({ morning: 'Pagi', midday: 'Siang', afternoon: 'Sore & Twilight' })[group.id] : group.label}
             </h3>
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-5">
               {group.slots.map((slot) => {
@@ -124,13 +126,13 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
                 const waitlistEligible = !closed && (slot.status === 'full' || slot.spotsLeft < players);
 
                 let caption = formatCompactCurrency(slot.pricePerPlayer);
-                if (closed) caption = 'Closed';
-                else if (slot.spotsLeft === 0) caption = 'Full';
-                else if (!fits) caption = `${slot.spotsLeft} left`;
+                if (closed) caption = text('Closed', 'Tutup');
+                else if (slot.spotsLeft === 0) caption = text('Full', 'Penuh');
+                else if (!fits) caption = text(`${slot.spotsLeft} left`, `Sisa ${slot.spotsLeft}`);
 
                 const hint =
                   !disabled && slot.spotsLeft <= 2
-                    ? `Only ${slot.spotsLeft} left`
+                    ? text(`Only ${slot.spotsLeft} left`, `Tersisa ${slot.spotsLeft}`)
                     : !disabled
                       ? TIER_LABELS[slot.tier]
                       : '';
@@ -172,7 +174,7 @@ export default function TimeSlotGrid({ dateKey, players, selectedTime, onSelect,
                         onClick={() => setWaitlistSlot(slot)}
                         className="mt-2 w-full text-center text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-[#C9A96E] underline underline-offset-4 hover:text-[#F6F2EA]"
                       >
-                        Join waitlist
+                        {text('Join waitlist', 'Gabung waitlist')}
                       </button>
                     )}
                   </div>

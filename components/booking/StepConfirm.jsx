@@ -10,6 +10,7 @@ import {
   pluralize,
 } from '@/lib/booking/utils';
 import Link from 'next/link';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 function TextField({
   id,
@@ -24,6 +25,7 @@ function TextField({
   optional = false,
   multiline = false,
   helperText,
+  optionalLabel,
 }) {
   const shared = {
     id,
@@ -47,7 +49,7 @@ function TextField({
     <div>
       <label htmlFor={id} className="mb-2 flex items-baseline justify-between text-xs font-medium uppercase tracking-[0.2em] text-[#F6F2EA]/70">
         {label}
-        {optional && <span className="normal-case tracking-normal text-[#F6F2EA]/40">Optional</span>}
+        {optional && <span className="normal-case tracking-normal text-[#F6F2EA]/40">{optionalLabel}</span>}
       </label>
       {multiline ? <textarea rows={3} {...shared} /> : <input type={type} {...shared} />}
       {error && (
@@ -84,6 +86,7 @@ function ReviewRow({ label, value, onChange, changeLabel }) {
 }
 
 export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
+  const { locale, text } = useLocale();
   const { guest, showErrors, submit } = state;
   const caddy = CADDY_OPTIONS.find((option) => option.id === state.caddy);
   const carts = Math.ceil(state.players / BUGGY.seatsPerCart);
@@ -102,14 +105,14 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
           id="review-heading"
           className="mb-5 font-[family-name:var(--font-heading)] text-3xl font-medium text-[#F6F2EA]"
         >
-          Review Your Round
+          {text('Review Your Round', 'Tinjau Ronde Anda')}
         </h2>
         <dl className="divide-y divide-[#C9A96E]/15 rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] px-6">
           <ReviewRow
-            label="Date & Tee Time"
-            value={`${formatLongDate(state.dateKey)} · ${state.slot.time}`}
+            label={text('Date & Tee Time', 'Tanggal & Tee Time')}
+            value={`${formatLongDate(state.dateKey, locale)} · ${state.slot.time}`}
             onChange={() => dispatch({ type: 'GO_TO_STEP', index: 0 })}
-            changeLabel="Ubah tanggal dan jam"
+            changeLabel={text('Change date and time', 'Ubah tanggal dan jam')}
           />
           <div className="flex items-start justify-between gap-6 py-4">
             <div className="w-full max-w-xs">
@@ -125,36 +128,36 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
               </select>
             </div>
             <ReviewRow
-              label="Package"
-              value={packageType}
+              label={text('Package', 'Paket')}
+              value={packageType === 'Weekend' ? text('Weekend', 'Akhir Pekan') : text('Weekday', 'Hari Kerja')}
               onChange={() => dispatch({ type: 'GO_TO_STEP', index: 0 })}
-              changeLabel="Ubah tanggal untuk mengganti paket weekday/weekend"
+              changeLabel={text('Change date to select weekday/weekend package', 'Ubah tanggal untuk mengganti paket hari kerja/akhir pekan')}
             />
           </div>
           <ReviewRow
-            label="Players"
-            value={pluralize(state.players, 'player')}
+            label={text('Players', 'Pemain')}
+            value={text(pluralize(state.players, 'player'), `${state.players} pemain`)}
             onChange={() => dispatch({ type: 'GO_TO_STEP', index: 0 })}
-            changeLabel="Ubah jumlah pemain"
+            changeLabel={text('Change player count', 'Ubah jumlah pemain')}
           />
           <ReviewRow
             label="Caddy"
             value={`${caddy.label} × ${state.players}`}
             onChange={() => dispatch({ type: 'GO_TO_STEP', index: 1 })}
-            changeLabel="Ubah caddy"
+            changeLabel={text('Change caddy', 'Ubah caddy')}
           />
           <ReviewRow
             label="Buggy"
-            value={state.buggy ? pluralize(carts, 'cart') : 'Walking'}
+            value={state.buggy ? text(pluralize(carts, 'cart'), `${carts} buggy`) : text('Walking', 'Berjalan kaki')}
             onChange={() => dispatch({ type: 'GO_TO_STEP', index: 1 })}
-            changeLabel="Ubah buggy"
+            changeLabel={text('Change buggy', 'Ubah buggy')}
           />
           {extrasSummary && (
             <ReviewRow
-              label="Add-ons"
+              label={text('Add-ons', 'Tambahan')}
               value={extrasSummary}
               onChange={() => dispatch({ type: 'GO_TO_STEP', index: 1 })}
-              changeLabel="Ubah add-on"
+              changeLabel={text('Change add-ons', 'Ubah tambahan')}
             />
           )}
         </dl>
@@ -165,10 +168,10 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
           id="details-heading"
           className="mb-2 font-[family-name:var(--font-heading)] text-3xl font-medium text-[#F6F2EA]"
         >
-          Lead Player Details
+          {text('Lead Player Details', 'Data Pemain Utama')}
         </h2>
         <p className="mb-6 text-sm text-[#F6F2EA]/55">
-          Your confirmation and check-in details are sent here.
+          {text('Your confirmation and check-in details are sent here.', 'Konfirmasi dan detail check-in akan dikirim ke alamat ini.')}
         </p>
 
         <form
@@ -182,7 +185,7 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
         >
           <TextField
             id="name"
-            label="Full Name"
+            label={text('Full Name', 'Nama Lengkap')}
             autoComplete="name"
             value={guest.name}
             error={fieldError('name')}
@@ -191,7 +194,7 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
           <div className="grid gap-5 sm:grid-cols-2">
             <TextField
               id="phone"
-              label="Mobile / WhatsApp"
+              label={text('Mobile / WhatsApp', 'Nomor HP / WhatsApp')}
               type="tel"
               inputMode="tel"
               autoComplete="tel"
@@ -213,34 +216,37 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
           </div>
           <TextField
             id="notes"
-            label="Special Requests"
+            label={text('Special Requests', 'Permintaan Khusus')}
             multiline
             optional
-            placeholder="Celebration, seating preference…"
-            helperText="Do not include medical, allergy, or other sensitive information."
+            optionalLabel={text('Optional', 'Opsional')}
+            placeholder={text('Celebration, seating preference…', 'Perayaan, preferensi tempat…')}
+            helperText={text('Do not include medical, allergy, or other sensitive information.', 'Jangan sertakan informasi medis, alergi, atau informasi sensitif lainnya.')}
             value={guest.notes}
             onChange={setField('notes')}
           />
           <div className="grid gap-5 sm:grid-cols-2">
             <TextField
               id="preferredCaddy"
-              label="Preferred Caddy"
+              label={text('Preferred Caddy', 'Caddy Pilihan')}
               optional
-              placeholder="Name, if requested"
+              optionalLabel={text('Optional', 'Opsional')}
+              placeholder={text('Name, if requested', 'Nama caddy jika ada permintaan')}
               value={state.serviceRequests.preferredCaddy}
               onChange={(value) => dispatch({ type: 'SET_SERVICE_REQUEST_FIELD', field: 'preferredCaddy', value })}
             />
             <TextField
               id="rentalNeeds"
-              label="Equipment Request"
+              label={text('Equipment Request', 'Permintaan Peralatan')}
               optional
-              placeholder="For example, left-handed clubs"
+              optionalLabel={text('Optional', 'Opsional')}
+              placeholder={text('For example, left-handed clubs', 'Contoh: stik golf untuk pemain kidal')}
               value={state.serviceRequests.rentalNeeds}
               onChange={(value) => dispatch({ type: 'SET_SERVICE_REQUEST_FIELD', field: 'rentalNeeds', value })}
             />
           </div>
           <p className="-mt-2 text-xs text-[#F6F2EA]/45">
-            Requests are not guaranteed and do not confirm service assignment. Do not enter medical or other sensitive information here.
+            {text('Requests are not guaranteed and do not confirm service assignment. Do not enter medical or other sensitive information here.', 'Permintaan tidak dijamin dan bukan konfirmasi penugasan layanan. Jangan masukkan informasi medis atau informasi sensitif lainnya.')}
           </p>
 
           <div>
@@ -255,8 +261,8 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
                 className="mt-1 h-4 w-4 flex-none accent-[#C9A96E]"
               />
               <span>
-                I understand the booking terms. {CANCELLATION_POLICY}{' '}
-                <Link href="/policies" className="text-[#C9A96E] underline underline-offset-4">Read all booking policies</Link>.
+                {text('I understand the booking terms.', 'Saya memahami ketentuan pemesanan.')} {text(CANCELLATION_POLICY, 'Pembatalan gratis hingga 24 jam sebelum Tee Time. Voucher rain-check untuk pembatalan terlambat hanya diberikan kepada akun member yang memenuhi syarat.')}{' '}
+                <Link href="/policies" className="text-[#C9A96E] underline underline-offset-4">{text('Read all booking policies', 'Baca seluruh kebijakan booking')}</Link>.
               </span>
             </label>
             {showErrors && errors.agreed && (
@@ -267,8 +273,7 @@ export default function StepConfirm({ state, dispatch, errors, onSubmit }) {
           </div>
 
           <p className="rounded-xl border border-[#C9A96E]/20 bg-[#C9A96E]/5 px-5 py-4 text-sm text-[#F6F2EA]/70">
-            This booking is a reservation only. Payment is made at the club on
-            arrival; this app does not process or confirm payments.
+            {text('This booking is a reservation only. Payment is made at the club on arrival; this app does not process or confirm payments.', 'Booking ini hanya merupakan reservasi. Pembayaran dilakukan di klub saat kedatangan; aplikasi ini tidak memproses atau mengonfirmasi pembayaran.')}
           </p>
 
           {submit.error && (

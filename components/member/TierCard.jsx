@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { TIERS } from '@/lib/member/utils';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 function CheckIcon() {
   return (
@@ -21,6 +22,7 @@ function CheckIcon() {
 }
 
 export default function TierCard({ progress }) {
+  const { text } = useLocale();
   const { current, next, percent, qualifyingRounds, remaining } = progress;
 
   return (
@@ -38,7 +40,7 @@ export default function TierCard({ progress }) {
       />
 
       <p className="text-[0.65rem] font-medium uppercase tracking-[0.35em] text-[#C9A96E]">
-        Digital Passport
+        {text('Digital Passport', 'Paspor Digital')}
       </p>
       <h2
         id="tier-heading"
@@ -50,14 +52,14 @@ export default function TierCard({ progress }) {
       <div className="mt-8">
         <div className="flex items-baseline justify-between text-sm">
           <span className="tabular-nums text-[#F6F2EA]">
-            {qualifyingRounds} verified {qualifyingRounds === 1 ? 'round' : 'rounds'}
+            {text(`${qualifyingRounds} verified ${qualifyingRounds === 1 ? 'round' : 'rounds'}`, `${qualifyingRounds} ronde terverifikasi`)}
           </span>
-          <span className="text-[#F6F2EA]/55">{next ? `${next.label} at ${next.minRounds}` : 'Top tier'}</span>
+          <span className="text-[#F6F2EA]/55">{next ? `${next.label} ${text('at', 'di')} ${next.minRounds}` : text('Top tier', 'Tier tertinggi')}</span>
         </div>
 
         <div
           role="progressbar"
-          aria-label="Progres menuju tier berikutnya"
+          aria-label={text('Progress toward next tier', 'Progres menuju tier berikutnya')}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(percent)}
@@ -73,8 +75,8 @@ export default function TierCard({ progress }) {
 
         <p className="mt-3 text-sm text-[#F6F2EA]/65">
           {next
-            ? `${remaining} more verified ${remaining === 1 ? 'round' : 'rounds'} in the next 12 months to reach ${next.label}.`
-            : 'You hold our highest tier. Thank you for playing with us.'}
+            ? text(`${remaining} more verified ${remaining === 1 ? 'round' : 'rounds'} in the next 12 months to reach ${next.label}.`, `Catat ${remaining} ronde terverifikasi lagi dalam 12 bulan ke depan untuk mencapai ${next.label}.`)
+            : text('You hold our highest tier. Thank you for playing with us.', 'Anda telah mencapai tier tertinggi kami. Terima kasih telah bermain bersama kami.')}
         </p>
       </div>
 
@@ -82,12 +84,24 @@ export default function TierCard({ progress }) {
         {current.benefits.map((benefit) => (
           <li key={benefit} className="flex items-start gap-3">
             <CheckIcon />
-            <span>{benefit}</span>
+            <span>{text(benefit, ({
+              'Standard 60-day booking window': 'Periode booking standar 60 hari',
+              '1% cashback to Fairway Wallet': 'Cashback 1% ke Fairway Wallet',
+              'Points on every green fee, caddy and extra': 'Poin untuk setiap green fee, caddy, dan layanan tambahan',
+              'Booking opens 7 days before the public': 'Booking dibuka 7 hari sebelum publik',
+              '2% cashback to Fairway Wallet': 'Cashback 2% ke Fairway Wallet',
+              'Priority caddy requests': 'Prioritas permintaan caddy',
+              '2 guest passes per year': '2 guest pass per tahun',
+              'Booking opens 14 days before the public': 'Booking dibuka 14 hari sebelum publik',
+              '3% cashback to Fairway Wallet': 'Cashback 3% ke Fairway Wallet',
+              'Priority access to prime-time tee times': 'Prioritas akses tee time populer',
+              'Dedicated concierge and 4 guest passes per year': 'Concierge khusus dan 4 guest pass per tahun',
+            })[benefit] || benefit)}</span>
           </li>
         ))}
       </ul>
 
-      <ol aria-label="Tingkatan membership" className="mt-8 grid grid-cols-3 gap-2">
+      <ol aria-label={text('Membership tiers', 'Tingkatan membership')} className="mt-8 grid grid-cols-3 gap-2">
         {TIERS.map((tier) => {
           const reached = qualifyingRounds >= tier.minRounds;
           const active = tier.id === current.id;
@@ -105,7 +119,7 @@ export default function TierCard({ progress }) {
             >
               {tier.label}
               <span className="mt-1 block text-[0.6rem] font-medium tracking-[0.1em] opacity-80">
-                {tier.minRounds}+ rounds
+                {text(`${tier.minRounds}+ rounds`, `${tier.minRounds}+ ronde`)}
               </span>
             </li>
           );

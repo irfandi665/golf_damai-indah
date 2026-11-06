@@ -9,9 +9,9 @@ export const metadata = {
 export default function PricingPage() {
   return (
     <PublicPageShell
-      eyebrow="Plan your round"
-      title="Rates & services"
-      description="Current green fees and optional services from the club booking system."
+      eyebrow={{ en: 'Plan your round', id: 'Rencanakan ronde Anda' }}
+      title={{ en: 'Rates & services', id: 'Harga & layanan' }}
+      description={{ en: 'Current green fees and optional services from the club booking system.', id: 'Green fee dan layanan opsional terkini dari sistem booking klub.' }}
     >
       <PricingTable />
     </PublicPageShell>

@@ -9,6 +9,7 @@ import BookingQr from './BookingQr';
 import { apiRequest } from '@/lib/api-client';
 import { fetchTeeTimes } from '@/lib/booking/engine';
 import { newIdempotencyKey } from '@/lib/api-client';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 import {
   buildCalendarUrl,
   formatDateTime,
@@ -24,14 +25,13 @@ const STATUS_STYLES = {
   completed: 'border-emerald-300/40 text-emerald-300',
   cancelled: 'border-[#F6F2EA]/20 text-[#F6F2EA]/50',
 };
-const STATUS_LABELS = { confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
-
 const TABS = [
   { id: 'upcoming', label: 'Upcoming' },
   { id: 'past', label: 'History' },
 ];
 
 function RescheduleControl({ booking, now, onRescheduled }) {
+  const { text } = useLocale();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState('');
   const [slotId, setSlotId] = useState('');
@@ -78,14 +78,14 @@ function RescheduleControl({ booking, now, onRescheduled }) {
   return (
     <div>
       <button type="button" onClick={() => setOpen((value) => !value)} className="rounded-full border border-[#C9A96E]/50 px-5 py-2.5 text-xs font-medium uppercase tracking-[0.2em] text-[#C9A96E] hover:bg-[#C9A96E]/10">
-        {open ? 'Close reschedule' : 'Change tee time'}
+        {open ? text('Close reschedule', 'Tutup ubah jadwal') : text('Change tee time', 'Ubah Tee Time')}
       </button>
       {open && (
         <form onSubmit={submit} className="mt-4 grid gap-3 rounded-xl border border-[#C9A96E]/20 bg-[#0F2A20]/60 p-4 sm:grid-cols-3">
-          <label className="text-xs text-[#F6F2EA]/60">New date<input type="date" required value={date} onChange={(event) => { setDate(event.target.value); setSlotId(''); }} className="mt-2 w-full rounded-lg border border-[#C9A96E]/25 bg-[#0F2A20] px-3 py-2.5 text-sm text-[#F6F2EA]" /></label>
-          <label className="text-xs text-[#F6F2EA]/60">Available tee time<select required value={slotId} onChange={(event) => setSlotId(event.target.value)} className="mt-2 w-full rounded-lg border border-[#C9A96E]/25 bg-[#0F2A20] px-3 py-2.5 text-sm text-[#F6F2EA]"><option value="">Select a time</option>{slots.filter((slot) => !(date === booking.dateKey && slot.time === booking.time)).map((slot) => <option key={slot.slotId} value={slot.slotId}>{slot.time} · {slot.spotsLeft} available</option>)}</select></label>
-          <div className="flex items-end"><button type="submit" disabled={!slotId || submitting} className="w-full rounded-full bg-[#C9A96E] px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-[#0F2A20] disabled:opacity-50">{submitting ? 'Updating…' : 'Confirm change'}</button></div>
-          <p className="text-xs leading-relaxed text-[#F6F2EA]/50 sm:col-span-3">Available until 24 hours before the original tee time. Player count and selected services remain unchanged. Green fee is recalculated; any difference is settled at the club.</p>
+          <label className="text-xs text-[#F6F2EA]/60">{text('New date', 'Tanggal baru')}<input type="date" required value={date} onChange={(event) => { setDate(event.target.value); setSlotId(''); }} className="mt-2 w-full rounded-lg border border-[#C9A96E]/25 bg-[#0F2A20] px-3 py-2.5 text-sm text-[#F6F2EA]" /></label>
+          <label className="text-xs text-[#F6F2EA]/60">{text('Available tee time', 'Tee time tersedia')}<select required value={slotId} onChange={(event) => setSlotId(event.target.value)} className="mt-2 w-full rounded-lg border border-[#C9A96E]/25 bg-[#0F2A20] px-3 py-2.5 text-sm text-[#F6F2EA]"><option value="">{text('Select a time', 'Pilih waktu')}</option>{slots.filter((slot) => !(date === booking.dateKey && slot.time === booking.time)).map((slot) => <option key={slot.slotId} value={slot.slotId}>{slot.time} · {slot.spotsLeft} {text('available', 'tersedia')}</option>)}</select></label>
+          <div className="flex items-end"><button type="submit" disabled={!slotId || submitting} className="w-full rounded-full bg-[#C9A96E] px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-[#0F2A20] disabled:opacity-50">{submitting ? text('Updating…', 'Memperbarui…') : text('Confirm change', 'Konfirmasi perubahan')}</button></div>
+          <p className="text-xs leading-relaxed text-[#F6F2EA]/50 sm:col-span-3">{text('Available until 24 hours before the original tee time. Player count and selected services remain unchanged. Green fee is recalculated; any difference is settled at the club.', 'Tersedia hingga 24 jam sebelum Tee Time awal. Jumlah pemain dan layanan pilihan tidak berubah. Green fee dihitung ulang; selisih dibayar di klub.')}</p>
           {error && <p role="alert" className="text-xs text-red-200 sm:col-span-3">{error}</p>}
         </form>
       )}
@@ -94,8 +94,10 @@ function RescheduleControl({ booking, now, onRescheduled }) {
 }
 
 function BookingCard({ booking, now, confirming, onAskCancel, onKeep, onConfirmCancel, onRescheduled }) {
+  const { locale, text } = useLocale();
+  const statusLabels = { confirmed: text('Confirmed', 'Dikonfirmasi'), completed: text('Completed', 'Selesai'), cancelled: text('Cancelled', 'Dibatalkan') };
   const caddy = CADDY_OPTIONS.find((option) => option.id === booking.caddy);
-  const { day, month, weekday } = getDateParts(booking.dateKey);
+  const { day, month, weekday } = getDateParts(booking.dateKey, locale);
   const upcoming = booking.status === 'confirmed';
   const free = upcoming && isFreeCancellation(booking, now);
 
@@ -120,7 +122,7 @@ function BookingCard({ booking, now, confirming, onAskCancel, onKeep, onConfirmC
             <span
               className={`rounded-full border px-3 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] ${STATUS_STYLES[booking.status]}`}
             >
-              {STATUS_LABELS[booking.status]}
+              {statusLabels[booking.status]}
             </span>
           </div>
           <p className="mt-1 text-sm text-[#F6F2EA]/65">

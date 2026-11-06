@@ -4,6 +4,7 @@ import DatePicker from './DatePicker';
 import QuantityStepper from './QuantityStepper';
 import TimeSlotGrid from './TimeSlotGrid';
 import { MAX_PLAYERS, MIN_PLAYERS, formatLongDate } from '@/lib/booking/utils';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 function Block({ index, title, hint, children }) {
   return (
@@ -28,13 +29,14 @@ function Block({ index, title, hint, children }) {
 }
 
 export default function StepSchedule({ state, dispatch, now, onSelectSlot }) {
+  const { locale, text } = useLocale();
   return (
     <div className="space-y-14">
-      <Block index="01" title="Players" hint="One flight, up to four players per tee time.">
+      <Block index="01" title={text('Players', 'Pemain')} hint={text('One flight, up to four players per tee time.', 'Satu flight, maksimal empat pemain per tee time.')}>
         <div className="rounded-2xl border border-[#C9A96E]/20 bg-white/[0.03] p-6 sm:p-8">
           <QuantityStepper
             size="lg"
-            label="Jumlah pemain"
+            label={text('Number of players', 'Jumlah pemain')}
             value={state.players}
             min={MIN_PLAYERS}
             max={MAX_PLAYERS}
@@ -43,7 +45,7 @@ export default function StepSchedule({ state, dispatch, now, onSelectSlot }) {
         </div>
       </Block>
 
-      <Block index="02" title="Date">
+      <Block index="02" title={text('Date', 'Tanggal')}>
         <DatePicker
           today={now}
           selectedKey={state.dateKey}
@@ -54,7 +56,7 @@ export default function StepSchedule({ state, dispatch, now, onSelectSlot }) {
       <Block
         index="03"
         title="Tee Time"
-        hint={state.dateKey ? formatLongDate(state.dateKey) : undefined}
+        hint={state.dateKey ? formatLongDate(state.dateKey, locale) : undefined}
       >
         {state.notice && (
           <p
@@ -75,7 +77,7 @@ export default function StepSchedule({ state, dispatch, now, onSelectSlot }) {
           />
         ) : (
           <p className="rounded-2xl border border-dashed border-[#C9A96E]/25 px-6 py-10 text-center text-sm text-[#F6F2EA]/55">
-            Choose a date to see live availability and pricing for every tee time.
+            {text('Choose a date to see live availability and pricing for every tee time.', 'Pilih tanggal untuk melihat ketersediaan dan harga tee time secara langsung.')}
           </p>
         )}
       </Block>

@@ -12,6 +12,7 @@ import { fetchMemberData } from '@/lib/member/data';
 import { apiRequest, newIdempotencyKey } from '@/lib/api-client';
 import Link from 'next/link';
 import { memberReducer } from '@/lib/member/reducer';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 import {
   VOUCHER_VALIDITY_DAYS,
   buildHandicapTrend,
@@ -23,15 +24,16 @@ import {
 } from '@/lib/member/utils';
 
 function MemberNavigation() {
+  const { text } = useLocale();
   const links = [
-    ['Overview', '#member-heading'],
-    ['Bookings', '#bookings'],
-    ['Waitlist', '#waitlist'],
+    [text('Overview', 'Ringkasan'), '#member-heading'],
+    [text('Bookings', 'Booking'), '#bookings'],
+    [text('Waitlist', 'Waitlist'), '#waitlist'],
     ['Handicap', '#handicap'],
-    ['Loyalty', '#loyalty'],
+    [text('Loyalty', 'Loyalty'), '#loyalty'],
   ];
   return (
-    <nav aria-label="Member sections" className="mx-auto max-w-7xl px-6 pt-24 lg:px-10 lg:pt-28">
+    <nav aria-label={text('Member sections', 'Bagian member')} className="mx-auto max-w-7xl px-6 pt-24 lg:px-10 lg:pt-28">
       <div className="flex flex-wrap items-center gap-2 border-b border-[#C9A96E]/15 pb-4">
         {links.map(([label, href]) => (
           <a key={href} href={href} className="rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-[#F6F2EA]/60 hover:bg-white/[0.05] hover:text-[#C9A96E]">
@@ -39,10 +41,10 @@ function MemberNavigation() {
           </a>
         ))}
         <Link href="/member/profile" className="rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-[#F6F2EA]/60 hover:bg-white/[0.05] hover:text-[#C9A96E]">
-          Profile & security
+          {text('Profile & security', 'Profil & keamanan')}
         </Link>
         <Link href="/booking" className="ml-auto rounded-full bg-[#C9A96E] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#0F2A20]">
-          Book a round
+          {text('Book a round', 'Pesan ronde')}
         </Link>
       </div>
     </nav>
@@ -74,6 +76,7 @@ function DashboardSkeleton() {
 }
 
 function DashboardView({ data, now, onRefresh }) {
+  const { text } = useLocale();
   const [state, dispatch] = useReducer(memberReducer, data, (initial) => ({
     ...initial,
     notice: null,
@@ -172,13 +175,13 @@ function DashboardView({ data, now, onRefresh }) {
       >
         {(announcements.length > 0 || announcementError) && (
           <section aria-label="Club announcements" className="mb-8 space-y-3">
-            {announcementError && <p role="status" className="text-sm text-amber-100">Club announcements are temporarily unavailable.</p>}
+            {announcementError && <p role="status" className="text-sm text-amber-100">{text('Club announcements are temporarily unavailable.', 'Pengumuman klub sementara tidak tersedia.')}</p>}
             {announcements.map((announcement) => (
               <article key={announcement.id} className="rounded-xl border border-[#C9A96E]/25 bg-[#C9A96E]/[0.07] p-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-[#C9A96E]">Club announcement</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-[#C9A96E]">{text('Club announcement', 'Pengumuman klub')}</p>
                 <h2 className="mt-2 text-base font-semibold">{announcement.title}</h2>
                 <p className="mt-1 text-sm text-[#F6F2EA]/65">{announcement.message}</p>
-                {announcement.href && <Link href={announcement.href} className="mt-3 inline-block text-xs text-[#C9A96E] underline underline-offset-4">Learn more</Link>}
+                {announcement.href && <Link href={announcement.href} className="mt-3 inline-block text-xs text-[#C9A96E] underline underline-offset-4">{text('Learn more', 'Selengkapnya')}</Link>}
               </article>
             ))}
           </section>
@@ -245,7 +248,7 @@ function DashboardView({ data, now, onRefresh }) {
               <button
                 type="button"
                 onClick={() => dispatch({ type: 'DISMISS_NOTICE' })}
-                aria-label="Tutup notifikasi"
+                aria-label={text('Close notification', 'Tutup notifikasi')}
                 className="flex-none text-lg leading-none text-[#F6F2EA]/60 transition-colors hover:text-[#C9A96E] focus-visible:outline-none focus-visible:text-[#C9A96E]"
               >
                 ×
@@ -260,6 +263,7 @@ function DashboardView({ data, now, onRefresh }) {
 
 // Waktu "sekarang" diambil di client setelah mount agar tidak terjadi hydration mismatch
 export default function MemberDashboard() {
+  const { text } = useLocale();
   const [now, setNow] = useState(null);
   const [load, setLoad] = useState({ status: 'loading', data: null });
   const [reloadToken, setReloadToken] = useState(0);
@@ -290,14 +294,14 @@ export default function MemberDashboard() {
         <div role="alert" className="rounded-2xl border border-red-300/30 bg-red-950/20 p-8">
           <p className="text-sm text-[#F6F2EA]/85">
             {load.error?.status === 401
-              ? 'Sign in to view your member dashboard.'
+              ? text('Sign in to view your member dashboard.', 'Masuk untuk melihat dashboard member.')
               : load.error?.status === 503
-                ? 'The member service is not configured yet. Contact the club or try again later.'
-                : 'We could not load your member dashboard. Check your connection and try again.'}
+                ? text('The member service is not configured yet. Contact the club or try again later.', 'Layanan member belum dikonfigurasi. Hubungi klub atau coba lagi nanti.')
+                : text('We could not load your member dashboard. Check your connection and try again.', 'Dashboard member belum dapat dimuat. Periksa koneksi dan coba lagi.')}
           </p>
           {load.error?.status === 401 ? (
             <Link href="/member/login" className="mt-5 inline-block rounded-full bg-[#C9A96E] px-7 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#0F2A20]">
-              Sign In
+              {text('Sign In', 'Masuk')}
             </Link>
           ) : (
             <button
@@ -305,7 +309,7 @@ export default function MemberDashboard() {
               onClick={() => setReloadToken((value) => value + 1)}
               className="mt-5 rounded-full border border-[#C9A96E] px-7 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A96E] transition-colors hover:bg-[#C9A96E] hover:text-[#0F2A20] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E]"
             >
-              Try Again
+              {text('Try Again', 'Coba Lagi')}
             </button>
           )}
         </div>

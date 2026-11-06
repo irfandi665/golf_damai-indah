@@ -46,63 +46,62 @@ function ClubhouseIcon() {
   );
 }
 
-function ProShopIcon() {
-  return (
-    <svg {...iconProps}>
-      <path d="M6 7h12l1 14H5L6 7z" />
-      <path d="M9 7a3 3 0 0 1 6 0" />
-      <path d="M9 12v1M15 12v1" />
-    </svg>
-  );
-}
-
 const FEATURES = [
   {
     id: 'course',
     index: '01',
-    label: 'The Course',
-    title: 'Championship Course',
+    label: 'Course / Lapangan',
+    titleEn: 'Plan your round',
+    titleId: 'Rencanakan ronde',
     description:
-      'An 18-hole layout shaped for serious golfers and visiting executives alike, maintained to tournament standard with greens that reward every well-struck approach.',
+      'The tee sheet is configured for 18 holes, Par 72. Contact the club for verified yardages, course maps, and current visit information.',
+    descriptionId:
+      'Tee sheet dikonfigurasi untuk 18 hole, Par 72. Hubungi klub untuk informasi yardage, peta course, dan detail kunjungan yang telah dikonfirmasi.',
     highlights: [
-      'Hole-by-hole yardage from every tee box',
-      'Daily course conditions and per-slot weather',
-      'Experienced caddies and fleet-ready carts',
+      ['18-hole, Par 72 tee-sheet configuration', 'Konfigurasi tee sheet 18 hole, Par 72'],
+      ['Ask the club about course details', 'Hubungi klub untuk detail course'],
+      ['See tee-time options online', 'Lihat pilihan tee time secara online'],
     ],
-    cta: { label: 'Check Availability', href: '/booking' },
+    cta: { labelEn: 'Explore the Course', labelId: 'Jelajahi Course', href: '/course' },
     icon: FlagIcon,
     panel: 'bg-gradient-to-br from-[#0F2A20] via-[#1d4a37] to-[#0F2A20]',
   },
   {
-    id: 'clubhouse',
+    id: 'booking',
     index: '02',
-    label: 'The Clubhouse',
-    title: 'Exclusive Clubhouse',
+    label: 'Online booking / Reservasi online',
+    titleEn: 'Choose a tee time',
+    titleId: 'Pilih tee time',
     description:
-      'A refined retreat before and after your round, with fine dining, private lounges, and locker facilities designed around the way executives entertain.',
+      'Check available tee times, review your quote, and submit a reservation through the booking flow. Payment is made at the club.',
+    descriptionId:
+      'Periksa tee time yang tersedia, tinjau rincian harga, lalu buat reservasi melalui alur booking. Pembayaran dilakukan di klub.',
     highlights: [
-      'Private lounges for client hospitality',
-      'Halfway-house pre-order, ready when you reach the turn',
-      'Locker rooms and post-round recovery',
+      ['Server-calculated quote', 'Rincian harga dihitung oleh server'],
+      ['Manage your reservation online', 'Kelola reservasi secara online'],
+      ['Payment settled at the club', 'Pembayaran diselesaikan di klub'],
     ],
-    cta: { label: 'Discover the Clubhouse', href: '/course#clubhouse' },
-    icon: ClubhouseIcon,
+    cta: { labelEn: 'Book a Tee Time', labelId: 'Pesan Tee Time', href: '/booking' },
+    icon: FlagIcon,
     panel: 'bg-gradient-to-br from-[#1B1B1B] via-[#2b2a25] to-[#0F2A20]',
   },
   {
-    id: 'pro-shop',
+    id: 'member',
     index: '03',
-    label: 'The Pro Shop',
-    title: 'Pro Shop',
+    label: 'Member services / Layanan member',
+    titleEn: 'Your member tools',
+    titleId: 'Fitur member',
     description:
-      'Curated equipment, premium apparel, and expert club fitting from our resident professionals, so you can leave with the right gear and a better swing.',
+      'Member features include booking history, a tee-time waitlist, loyalty records, and an indicative handicap.',
+    descriptionId:
+      'Fitur member mencakup riwayat booking, daftar tunggu tee time, catatan loyalty, dan handicap indikatif.',
     highlights: [
-      'Custom club fitting with resident pros',
-      'Premium golf apparel and accessories',
-      'Equipment rental, reserved with your tee time',
+      ['Join a waitlist for a specific tee time', 'Bergabung dalam daftar tunggu untuk tee time tertentu'],
+      ['View loyalty and round records', 'Lihat catatan loyalty dan ronde'],
+      ['Handicap is indicative, not official WHS', 'Handicap bersifat indikatif, bukan WHS resmi'],
     ],
-    cta: { label: 'Visit the Pro Shop', href: '/course#pro-shop' },
-    icon: ProShopIcon,
+    cta: { labelEn: 'Member Portal', labelId: 'Portal Member', href: '/member' },
+    icon: ClubhouseIcon,
     panel: 'bg-gradient-to-br from-[#12342a] via-[#0F2A20] to-[#3a3322]',
   },
 ];
@@ -144,7 +143,9 @@ export default function FeatureSection() {
             <div className="flex items-center justify-center gap-4">
               <span aria-hidden="true" className="h-px w-10 bg-[#C9A96E]" />
               <p className="text-[0.7rem] font-medium uppercase tracking-[0.4em] text-[#8a6d35] sm:text-xs">
-                The Experience
+                <span lang="en">The Experience</span>
+                <span aria-hidden="true"> / </span>
+                <span lang="id">Pengalaman</span>
               </p>
               <span aria-hidden="true" className="h-px w-10 bg-[#C9A96E]" />
             </div>
@@ -152,11 +153,12 @@ export default function FeatureSection() {
               id="feature-heading"
               className="mt-6 font-[family-name:var(--font-heading)] text-4xl font-medium leading-tight tracking-tight text-[#0F2A20] sm:text-5xl lg:text-6xl"
             >
-              Every detail is part of <span className="italic">the game</span>
+              <span lang="en">Make time for <span className="italic">your game</span></span>
+              <span lang="id" className="mt-2 block text-[0.72em] italic">Luangkan waktu untuk permainan Anda</span>
             </h2>
             <p className="mt-6 text-base leading-relaxed text-[#1B1B1B]/70 sm:text-lg">
-              From the first tee to the last handshake in the clubhouse, we design the entire
-              day around your time, your guests, and your standards.
+              <span lang="en">Choose the information and services you need before submitting a reservation.</span>
+              <span lang="id" className="mt-2 block">Pilih informasi dan layanan yang Anda perlukan sebelum mengirim reservasi.</span>
             </p>
           </motion.div>
 
@@ -216,17 +218,23 @@ export default function FeatureSection() {
                       {feature.label}
                     </p>
                     <h3 className="mt-3 font-[family-name:var(--font-heading)] text-3xl font-semibold leading-tight text-[#0F2A20]">
-                      {feature.title}
+                      <span lang="en">{feature.titleEn}</span>
+                      <span lang="id" className="mt-1 block text-[0.78em] italic">{feature.titleId}</span>
                     </h3>
                     <p className="mt-4 text-[0.95rem] leading-relaxed text-[#1B1B1B]/70">
-                      {feature.description}
+                      <span lang="en">{feature.description}</span>
+                      <span lang="id" className="mt-2 block">{feature.descriptionId}</span>
                     </p>
 
                     <ul className="mt-6 space-y-3 text-sm text-[#1B1B1B]/80">
                       {feature.highlights.map((highlight) => (
                         <li key={highlight} className="flex items-start gap-3">
                           <CheckIcon />
-                          <span>{highlight}</span>
+                          <span>
+                            <span lang="en">{highlight[0]}</span>
+                            <span aria-hidden="true"> / </span>
+                            <span lang="id">{highlight[1]}</span>
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -235,7 +243,11 @@ export default function FeatureSection() {
                       href={feature.cta.href}
                       className="group/link mt-8 inline-flex items-center gap-3 self-start border-b border-[#0F2A20]/30 pb-1 text-xs font-semibold uppercase tracking-[0.25em] text-[#0F2A20] transition-colors duration-300 hover:border-[#C9A96E] hover:text-[#8a6d35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E] focus-visible:ring-offset-4 focus-visible:ring-offset-white lg:mt-auto"
                     >
-                      {feature.cta.label}
+                      <span className="text-center">
+                        <span lang="en">{feature.cta.labelEn}</span>
+                        <span aria-hidden="true"> / </span>
+                        <span lang="id">{feature.cta.labelId}</span>
+                      </span>
                       <svg
                         aria-hidden="true"
                         viewBox="0 0 24 24"
