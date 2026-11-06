@@ -98,7 +98,8 @@ Tes integrasi membuat member dan booking sementara melalui API lokal, menguji
 retry idempotency, reschedule, waitlist/claim, preferensi notifikasi,
 tee-sheet search, catatan dan kesiapan layanan, batas akses role operasional,
 approval update kondisi lapangan, e-ticket/check-in, laporan/ekspor CSV,
-override audit, serta rate limit Redis, lalu menghapus data tes yang dibuat.
+override audit, konkurensi hold pada kapasitas terakhir, serta rate limit
+Redis, lalu menghapus data tes yang dibuat.
 Gunakan database `golf` lokal atau database lokal dengan akhiran `_test`, dan
 pastikan database tersebut bukan production. Tanggal tee time tes dipilih jauh
 di masa depan; slot yang dibuat khusus oleh tes dibersihkan setelahnya.
@@ -115,6 +116,12 @@ Di terminal kedua, jalankan:
 ```powershell
 npm run test:integration
 ```
+
+Tes race condition dapat dijalankan terpisah dengan
+`npm run test:integration:race`. Tes ini membuat dua member/session lokal,
+menembakkan request hold serentak ke satu tee slot berkapasitas satu, lalu
+memeriksa status HTTP, state committed PostgreSQL, dan TTL kunci rate-limit
+Redis. Tes hanya menghapus fixture miliknya dan tidak menjalankan `FLUSHDB`.
 
 Suite akan menolak API, PostgreSQL, atau Redis non-lokal. Jika proses dihentikan
 paksa, data sementara mungkin tertinggal; gunakan hanya database test dan

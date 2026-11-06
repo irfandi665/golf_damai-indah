@@ -18,6 +18,7 @@
     "build": "next build",
     "start": "next start",
     "db:migrate": "node scripts/migrate.mjs",
-    "test:integration": "node --test tests/integration/api.test.mjs"
+    "test:integration": "node --test tests/integration/api.test.mjs tests/integration/tee-time-hold-race.test.mjs",
+    "test:integration:race": "node --test tests/integration/tee-time-hold-race.test.mjs"
   }
 }
